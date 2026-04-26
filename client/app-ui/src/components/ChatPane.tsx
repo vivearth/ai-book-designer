@@ -50,9 +50,12 @@ export function ChatPane({
             <textarea value={draft.instruction} onChange={(event) => setDraft({ ...draft, instruction: event.target.value })} placeholder="Polish the prose, keep it calm and literary, maintain continuity." />
           </label>
           <label className="file-input">
-            Add a page image
-            <input type="file" accept="image/*" onChange={(event) => setDraft({ ...draft, imageFile: event.target.files?.[0] ?? null })} />
-            <span>{draft.imageFile?.name || 'No file selected yet'}</span>
+            <span>Add page image</span>
+            <div className="file-input-dropzone">
+              <p>Drop image here or choose file</p>
+              <input type="file" accept="image/*" onChange={(event) => setDraft({ ...draft, imageFile: event.target.files?.[0] ?? null })} />
+            </div>
+            {draft.imageFile ? <span className="file-chip">{draft.imageFile.name}</span> : <span className="muted">No file selected yet</span>}
           </label>
           <div className="chat-actions">
             <button type="button" className="ghost-button" onClick={onSaveDraft} disabled={busy}>Save draft</button>

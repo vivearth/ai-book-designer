@@ -12,23 +12,23 @@ export function PageNavigator({ pages, activePageId, isCoverActive, onSelectCove
   const [jump, setJump] = useState('')
   const sorted = [...pages].sort((a, b) => a.page_number - b.page_number)
   const active = sorted.find((p) => p.id === activePageId) ?? null
-  const windowed = useMemo(() => {
-    if (!active) return sorted.slice(0, 10)
-    return sorted.filter((p) => Math.abs(p.page_number - active.page_number) <= 5 || p.page_number <= 2 || p.page_number > sorted.length - 2)
-  }, [sorted, active])
+  const activeIndex = useMemo(() => (active ? sorted.findIndex((p) => p.id === active.id) : -1), [sorted, active])
+  const canPrev = activeIndex > 0
+  const canNext = activeIndex >= 0 && activeIndex < sorted.length - 1
 
   return (
     <div className="page-navigator">
-      <button type="button" className={isCoverActive ? 'is-active' : ''} onClick={onSelectCover}>Cover</button>
-      {windowed.map((p) => <button key={p.id} className={active?.id === p.id ? 'is-active' : ''} onClick={() => onSelectPage(p.id)}>P{p.page_number}</button>)}
-      <span className="page-count">{sorted.length} pages</span>
-      <input value={jump} onChange={(e) => setJump(e.target.value)} placeholder="Go to" />
-      <button type="button" onClick={() => {
+      <button type="button" className={`icon-btn ${isCoverActive ? 'is-active' : ''}`} onClick={onSelectCover} title="Cover">📘</button>
+      <button type="button" className="icon-btn" disabled={!canPrev} onClick={() => canPrev && onSelectPage(sorted[activeIndex - 1].id)}>‹</button>
+      <span className="page-count">{active ? `Page ${active.page_number} of ${sorted.length}` : `Page 0 of ${sorted.length}`}</span>
+      <button type="button" className="icon-btn" disabled={!canNext} onClick={() => canNext && onSelectPage(sorted[activeIndex + 1].id)}>›</button>
+      <input className="jump-input" value={jump} onChange={(e) => setJump(e.target.value)} placeholder="Jump" />
+      <button type="button" className="icon-btn" onClick={() => {
         const num = Number(jump)
         const found = sorted.find((p) => p.page_number === num)
         if (found) onSelectPage(found.id)
-      }}>Jump</button>
-      <button type="button" onClick={onCreateNext}>+ Next page</button>
+      }}>↳</button>
+      <button type="button" className="icon-btn" onClick={onCreateNext}>＋</button>
     </div>
   )
 }

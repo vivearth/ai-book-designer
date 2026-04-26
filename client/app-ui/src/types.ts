@@ -119,6 +119,8 @@ export type GenerationResponse = {
   source_refs: { source_asset_id?: string; chunk_id?: string; reason?: string }[]
   quality_report?: { score: number; flags: Record<string, boolean>; issues: string[]; suggested_fixes: string[] }
   warnings: string[]
+  overflow_created_page?: Page | null
+  overflow_warning?: string | null
 }
 
 

@@ -250,6 +250,18 @@ class SourceTextCreate(BaseModel):
     tags: list[str] = Field(default_factory=list)
 
 
+class PageCapacityHint(BaseModel):
+    visible_text_area_width_px: float
+    visible_text_area_height_px: float
+    font_family: str
+    font_size_px: float
+    line_height_px: float
+    estimated_chars_per_line: int
+    estimated_lines: int
+    estimated_words: int
+    composition: str
+
+
 class GenerationRequest(BaseModel):
     instruction: str | None = None
     target_words: int | None = None
@@ -260,6 +272,7 @@ class GenerationRequest(BaseModel):
     auto_retrieve_sources: bool = True
     content_mode: str | None = None
     quality_threshold: int = 70
+    page_capacity_hint: PageCapacityHint | None = None
 
 
 class GenerationResponse(BaseModel):
@@ -270,12 +283,18 @@ class GenerationResponse(BaseModel):
     source_refs: list[dict[str, Any]] = Field(default_factory=list)
     quality_report: dict[str, Any] | None = None
     warnings: list[str] = Field(default_factory=list)
+    overflow_created_page: PageRead | None = None
+    overflow_warning: str | None = None
 
 
 class PdfExportResponse(BaseModel):
     book_id: str
     filename: str
     download_url: str
+
+
+class PdfExportRequest(BaseModel):
+    approved_only: bool = False
 
 
 class DraftGenerationRequest(BaseModel):

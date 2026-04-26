@@ -33,8 +33,18 @@ def update_page(page_id: str, payload: PageUpdate, db: Session = Depends(get_db)
 
 @router.post("/pages/{page_id}/generate", response_model=GenerationResponse)
 async def generate_page(page_id: str, payload: GenerationRequest, db: Session = Depends(get_db)):
-    page, packet, notes, skill_output, source_refs, quality_report, warnings = await service.generate_page(db, page_id, payload)
-    return GenerationResponse(page=page, context_packet=packet, continuity_notes=notes, skill_output=skill_output, source_refs=source_refs, quality_report=quality_report, warnings=warnings)
+    page, packet, notes, skill_output, source_refs, quality_report, warnings, overflow_created_page, overflow_warning = await service.generate_page(db, page_id, payload)
+    return GenerationResponse(
+        page=page,
+        context_packet=packet,
+        continuity_notes=notes,
+        skill_output=skill_output,
+        source_refs=source_refs,
+        quality_report=quality_report,
+        warnings=warnings,
+        overflow_created_page=overflow_created_page,
+        overflow_warning=overflow_warning,
+    )
 
 
 @router.post("/pages/{page_id}/approve", response_model=PageRead)

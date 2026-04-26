@@ -7,6 +7,7 @@ import { ChatPane } from './ChatPane'
 import { DeveloperDiagnostics } from './DeveloperDiagnostics'
 import { QualityReportPanel } from './QualityReportPanel'
 import { SourceLibraryPane } from './SourceLibraryPane'
+import { estimatePageCapacity } from '../utils/pageCapacity'
 
 type Draft = { user_prompt: string; user_text: string; instruction: string; imageFile: File | null }
 const INITIAL_DRAFT: Draft = { user_prompt: '', user_text: '', instruction: 'Shape this into a polished page while preserving continuity.', imageFile: null }
@@ -29,8 +30,13 @@ export function BookWorkspace({ book, pages, setPages, refreshPages, onBack, onS
   const [continuityNotes, setContinuityNotes] = useState<string[]>([])
   const [qualityReport, setQualityReport] = useState<any>(null)
   const [warnings, setWarnings] = useState<string[]>([])
+  const [overflowNotice, setOverflowNotice] = useState<string | null>(null)
   const [sources, setSources] = useState<SourceAsset[]>([])
   const [selectedSourceIds, setSelectedSourceIds] = useState<string[]>([])
+  const [exportOpen, setExportOpen] = useState(false)
+  const [exportBusy, setExportBusy] = useState(false)
+  const [includeDraft, setIncludeDraft] = useState(true)
+  const [exportError, setExportError] = useState<string | null>(null)
 
   const sortedPages = useMemo(() => [...pages].sort((a, b) => a.page_number - b.page_number), [pages])
   const currentPage = activeTarget.kind === 'page' ? sortedPages.find((page) => page.id === activeTarget.pageId) ?? null : null
@@ -83,15 +89,19 @@ export function BookWorkspace({ book, pages, setPages, refreshPages, onBack, onS
 
       const contentMode = book.book_type_id
       const allowNewCharacters = contentMode.includes('fiction') && (page.page_number === 1 || !book.memory?.global_summary)
+      const page_capacity_hint = estimatePageCapacity(book, page)
       const result: GenerationResponse = await api.generatePage(page.id, {
         instruction: draft.instruction,
         allow_new_characters: allowNewCharacters,
         content_mode: contentMode,
+        page_capacity_hint,
         selected_source_asset_ids: expertMode ? selectedSourceIds : [],
         auto_retrieve_sources: true,
       })
       setContextPacket(result.context_packet); setContinuityNotes(result.continuity_notes)
       setQualityReport(result.quality_report); setWarnings(result.warnings || [])
+      if (result.overflow_created_page) setOverflowNotice(`The page overflowed, so the remaining text continued on Page ${result.overflow_created_page.page_number}.`)
+      else setOverflowNotice(result.overflow_warning || null)
       await refreshPages(); setActiveTarget({ kind: 'page', pageId: result.page.id })
     })
   }
@@ -113,6 +123,27 @@ export function BookWorkspace({ book, pages, setPages, refreshPages, onBack, onS
     })
   }
 
+  async function exportPdf() {
+    setExportBusy(true)
+    setExportError(null)
+    try {
+      const response = await api.exportPdf(book.id, { approved_only: !includeDraft })
+      window.open(response.download_url, '_blank', 'noopener,noreferrer')
+      setExportOpen(false)
+    } catch (err) {
+      setExportError(err instanceof Error ? err.message : 'Export failed')
+    } finally {
+      setExportBusy(false)
+    }
+  }
+
+  const pageStats = useMemo(() => {
+    const approved = sortedPages.filter((p) => p.status === 'approved').length
+    const generated = sortedPages.filter((p) => p.status === 'generated').length
+    const draftCount = sortedPages.length - approved - generated
+    return { approved, generated, draftCount }
+  }, [sortedPages])
+
   return (
     <div className="workspace-shell">
       <header className="workspace-topbar">
@@ -122,11 +153,15 @@ export function BookWorkspace({ book, pages, setPages, refreshPages, onBack, onS
           <h1>{book.title}</h1>
           <small>{bookType.displayName}</small>
         </div>
-        <div className="workspace-projects">
+        <div className="workspace-topbar-actions">
+          <button type="button" onClick={() => setExportOpen(true)}>Finish & Export</button>
+          <div className="workspace-projects">
           {books.slice(0, 4).map((item) => <button key={item.id} type="button" className={`project-dot ${item.id === book.id ? 'is-active' : ''}`} onClick={() => onSelectProject(item)}>{item.title.slice(0, 1)}</button>)}
+          </div>
         </div>
       </header>
       {error ? <div className="error-banner">{error}</div> : null}
+      {overflowNotice ? <div className="warning-banner">{overflowNotice}</div> : null}
 
       <div className="workspace-grid">
         <div>
@@ -138,6 +173,24 @@ export function BookWorkspace({ book, pages, setPages, refreshPages, onBack, onS
       </div>
 
       <DeveloperDiagnostics contextPacket={contextPacket} continuityNotes={continuityNotes} />
+      {exportOpen ? (
+        <div className="export-modal-backdrop" role="dialog" aria-modal="true">
+          <div className="export-modal">
+            <h3>Export PDF</h3>
+            <p><strong>{book.title}</strong></p>
+            <p>{sortedPages.length} pages · {pageStats.approved} approved · {pageStats.generated} generated · {pageStats.draftCount} draft</p>
+            <label className="export-choice">
+              <input type="checkbox" checked={includeDraft} onChange={(e) => setIncludeDraft(e.target.checked)} />
+              Include draft pages
+            </label>
+            {exportError ? <p className="error-banner">{exportError}</p> : null}
+            <div className="chat-actions">
+              <button type="button" className="ghost-button" onClick={() => setExportOpen(false)} disabled={exportBusy}>Cancel</button>
+              <button type="button" onClick={() => void exportPdf()} disabled={exportBusy}>{exportBusy ? 'Exporting…' : 'Download PDF'}</button>
+            </div>
+          </div>
+        </div>
+      ) : null}
     </div>
   )
 }

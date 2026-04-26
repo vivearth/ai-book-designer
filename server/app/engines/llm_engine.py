@@ -123,14 +123,18 @@ class LLMEngine:
             )
             words = base.split()
             try:
-                target = max(160, int(float(target_words))) if target_words else 220
+                target = max(200, int(float(target_words))) if target_words else 220
             except ValueError:
                 target = 220
+            filler_blocks = [
+                "He cuts through lanes of stalled scooters, vaults crates near the slum road, and follows the dim lights under the bridge where the gunfire cannot aim cleanly.",
+                "Each choice costs him speed or safety, and he keeps trading comfort for momentum because hesitation would end the story here.",
+                "By the time he reaches the market stairs, the city has become a maze of tin roofs, shouting vendors, and rain-slick rails.",
+            ]
+            filler_idx = 0
             while len(words) < int(target * 0.85):
-                words.extend((
-                    "He cuts through lanes of stalled scooters, vaults crates near the slum road, and follows the dim lights under the bridge where the gunfire cannot aim cleanly. "
-                    "Every breath burns, every step narrows the margin, and survival depends on choosing movement over panic."
-                ).split())
+                words.extend(filler_blocks[filler_idx % len(filler_blocks)].split())
+                filler_idx += 1
             return " ".join(words[:target])
         return (
             f"{direction} begins by clarifying the central idea at stake. {rough_text} "

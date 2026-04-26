@@ -34,7 +34,8 @@ export const api = {
     const body = new FormData(); body.append('file', file); if (caption) body.append('caption', caption)
     return request<PageImage>(`/pages/${pageId}/images`, { method: 'POST', body })
   },
-  exportPdf: (bookId: string) => request<{ book_id: string; filename: string; download_url: string }>(`/books/${bookId}/export/pdf`, { method: 'POST' }),
+  exportPdf: (bookId: string, payload?: { approved_only?: boolean }) =>
+    request<{ book_id: string; filename: string; download_url: string }>(`/books/${bookId}/export/pdf`, { method: 'POST', body: JSON.stringify(payload || {}) }),
   generateDraft: (bookId: string, payload: Record<string, unknown>) => request<DraftGenerationResponse>(`/books/${bookId}/draft/generate`, { method: 'POST', body: JSON.stringify(payload) }),
 
   listProjects: () => request<Project[]>('/projects'),

@@ -1,7 +1,8 @@
 export function DeveloperDiagnostics({ contextPacket, continuityNotes }: { contextPacket: Record<string, unknown> | null; continuityNotes: string[] }) {
+  if (!import.meta.env.DEV) return null
   return (
     <details className="developer-diagnostics">
-      <summary>Developer diagnostics</summary>
+      <summary>Advanced diagnostics</summary>
       <div className="developer-diagnostics__content">
         <section>
           <h4>Context packet</h4>

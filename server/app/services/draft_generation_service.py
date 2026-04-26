@@ -47,7 +47,7 @@ class DraftGenerationService:
                 selected_source_asset_ids=payload.source_asset_ids,
                 target_words=260 if config.default_format == "modern-editorial" else 360,
             )
-            generated_page, _, _, _, _, _, _ = await self.page_service.generate_page(db, page.id, req)
+            generated_page, _, _, _, _, _, _, _, _ = await self.page_service.generate_page(db, page.id, req)
             created_pages.append(generated_page)
 
         summary = {"selected_source_count": len(selected_assets), "selected_source_titles": [a.title for a in selected_assets[:8]]}

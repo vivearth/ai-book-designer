@@ -27,7 +27,10 @@ export function SourceLibraryPane({ projectId, sources, onRefresh, selected, set
         <label>
           <strong>Upload source files</strong>
           <p>Drop PDFs, markdown, text, images, and notes.</p>
-          <input type="file" multiple onChange={(e) => void uploadFiles(e.target.files)} />
+          <div className="file-input-dropzone">
+            <p>Drop files here or choose files</p>
+            <input type="file" multiple onChange={(e) => void uploadFiles(e.target.files)} />
+          </div>
         </label>
       </Card>
 

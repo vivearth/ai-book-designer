@@ -5,7 +5,7 @@ from sqlalchemy.orm import Session
 
 from app.core.database import get_db
 from app.engines.pdf_engine import PdfEngine
-from app.models.schemas import BookCreate, BookRead, BookUpdate, DraftGenerationRequest, DraftGenerationResponse, PdfExportResponse
+from app.models.schemas import BookCreate, BookRead, BookUpdate, DraftGenerationRequest, DraftGenerationResponse, PdfExportRequest, PdfExportResponse
 from app.services.book_service import BookService
 from app.services.draft_generation_service import DraftGenerationService
 
@@ -48,7 +48,7 @@ async def generate_book_draft(book_id: str, payload: DraftGenerationRequest, db:
 
 
 @router.post("/{book_id}/export/pdf", response_model=PdfExportResponse)
-def export_book_pdf(book_id: str, db: Session = Depends(get_db)):
+def export_book_pdf(book_id: str, payload: PdfExportRequest, db: Session = Depends(get_db)):
     book = service.get_book(db, book_id)
-    filename, _ = pdf_engine.export_book(db, book=book)
+    filename, _ = pdf_engine.export_book(db, book=book, approved_only=payload.approved_only)
     return PdfExportResponse(book_id=book.id, filename=filename, download_url=f"/api/exports/{filename}")

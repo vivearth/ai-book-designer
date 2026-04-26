@@ -14,7 +14,7 @@ from app.models.entities import Book, Page
 
 
 class PdfEngine:
-    def export_book(self, db: Session, *, book: Book) -> tuple[str, Path]:
+    def export_book(self, db: Session, *, book: Book, approved_only: bool = False) -> tuple[str, Path]:
         settings = get_settings()
         safe_title = "".join(ch if ch.isalnum() else "_" for ch in book.title.lower()).strip("_") or "untitled"
         filename = f"{safe_title}_{book.id}.pdf"
@@ -59,7 +59,10 @@ class PdfEngine:
         story.append(Paragraph((book.format_settings or {}).get("layout_name", "Editorial layout"), styles["Heading3"]))
         story.append(PageBreak())
 
-        pages = db.query(Page).filter(Page.book_id == book.id).order_by(Page.page_number.asc()).all()
+        pages_query = db.query(Page).filter(Page.book_id == book.id)
+        if approved_only:
+            pages_query = pages_query.filter(Page.status == "approved")
+        pages = pages_query.order_by(Page.page_number.asc()).all()
         for page in pages:
             text = page.final_text or page.generated_text or page.user_text or ""
             story.append(Paragraph(f"Page {page.page_number}", styles["Heading2"]))

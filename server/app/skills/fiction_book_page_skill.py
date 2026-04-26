@@ -59,6 +59,8 @@ Requirements:
 - Preserve named entities from rough text.
 - Keep continuity with memory and recent pages.
 - Use sensory detail and clear action.
+- Keep prose compact enough to fit a single designed book page.
+- Do not repeat sentences or phrase blocks to pad length.
 """.strip()
 
         generated, notes = await context.llm_engine.generate_text(prompt, temperature=0.75)

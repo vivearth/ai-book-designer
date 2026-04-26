@@ -25,6 +25,8 @@ Target words: {target_words}
 Write reader-facing prose only.
 No JSON or prompt labels.
 Keep the writing practical, coherent, and informative.
+Keep it concise enough to fit one visible page.
+Do not repeat sentences to satisfy target words.
 """.strip()
         text, notes = await context.llm_engine.generate_text(prompt, temperature=0.55)
         return SkillResult(

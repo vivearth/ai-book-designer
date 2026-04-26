@@ -11,6 +11,8 @@ from app.engines.layout_engine import LayoutEngine
 from app.engines.llm_engine import LLMEngine
 from app.engines.memory_engine import MemoryEngine
 from app.engines.source_retrieval_engine import SourceRetrievalEngine
+from app.engines.text_pagination_engine import TextPaginationEngine
+from app.engines.text_quality_engine import TextQualityEngine
 from app.models.entities import Book, BrandProfile, FormatProfile, Page, PageImage, Project, SourceChunk, new_id
 from app.models.schemas import GenerationRequest, PageCreate, PageUpdate
 from app.skills import build_skill_registry
@@ -24,6 +26,8 @@ class PageService:
         self.memory_engine = MemoryEngine()
         self.llm_engine = LLMEngine()
         self.source_retrieval_engine = SourceRetrievalEngine()
+        self.text_quality_engine = TextQualityEngine()
+        self.pagination_engine = TextPaginationEngine()
         self.skill_registry = build_skill_registry()
 
     def get_book(self, db: Session, book_id: str) -> Book:
@@ -71,7 +75,7 @@ class PageService:
         db.refresh(page)
         return page
 
-    async def generate_page(self, db: Session, page_id: str, request: GenerationRequest) -> tuple[Page, dict, list[str], dict | None, list[dict], dict | None, list[str]]:
+    async def generate_page(self, db: Session, page_id: str, request: GenerationRequest) -> tuple[Page, dict, list[str], dict | None, list[dict], dict | None, list[str], Page | None, str | None]:
         page = self.get_page(db, page_id)
         book = page.book
         self.memory_engine.ensure_memory(db, book)
@@ -83,7 +87,11 @@ class PageService:
         composition = draft_layout.get("composition", "text_only")
         computed_target_words, word_budget_reason = self.layout_engine.estimate_target_words(book=book, page=page, composition=composition)
         target_words = request.target_words if request.target_words is not None else computed_target_words
-        if request.target_words is not None:
+        if request.page_capacity_hint:
+            hinted = max(40, min(520, int(request.page_capacity_hint.estimated_words)))
+            target_words = min(target_words, hinted)
+            word_budget_reason = f"{word_budget_reason}; clamped by page capacity hint at {hinted} words for {request.page_capacity_hint.composition}"
+        elif request.target_words is not None:
             target_words = max(40, min(520, request.target_words))
 
         source_chunks = self._collect_source_chunks(db, book, page, request, project)
@@ -120,13 +128,49 @@ class PageService:
         content = skill_result.output
         body = content.get("body_text") or ""
         body, sanitize_notes = self.llm_engine.sanitize_generated_page_text(body)
+        deduped_body, repetition_notes = self.text_quality_engine.remove_repeated_sentences(body)
+        minimum_quality_words = max(120, int(target_words * 0.45))
+        body = deduped_body if len(deduped_body.split()) >= minimum_quality_words else body
         warnings.extend(skill_result.warnings)
         warnings.extend(sanitize_notes)
+        warnings.extend(repetition_notes)
+
+        current_text, overflow_text = self.pagination_engine.split_text_for_page(body, target_words)
+        overflow_created_page: Page | None = None
+        overflow_warning: str | None = None
+        if overflow_text.strip():
+            next_page = (
+                db.query(Page)
+                .filter(Page.book_id == book.id, Page.page_number == page.page_number + 1)
+                .first()
+            )
+            if next_page:
+                overflow_warning = "Generated text overflowed but next page already exists; overflow was not written automatically."
+                warnings.append(overflow_warning)
+            else:
+                overflow_created_page = self.create_page(
+                    db,
+                    book.id,
+                    PageCreate(
+                        page_number=page.page_number + 1,
+                        user_prompt=f"Continuation from page {page.page_number}",
+                        user_text=overflow_text,
+                    ),
+                )
+                overflow_created_page.generated_text = overflow_text
+                overflow_created_page.status = "generated"
+                overflow_created_page.generation_metadata = {
+                    "continued_from_page_id": page.id,
+                    "auto_continued": True,
+                }
+                overflow_created_page.layout_json = self.layout_engine.build_layout(book=book, page=overflow_created_page)
+                self.memory_engine.update_after_page(db, book=book, page=overflow_created_page)
+                db.commit()
 
         quality_skill = self.skill_registry.get("content_quality")
         quality_result = await quality_skill.run(
             {
-                "generated_text": body,
+                "generated_text": current_text,
                 "target_words": target_words,
                 "expected_content_direction": (project.content_direction if project else (book.genre or "")),
             },
@@ -134,7 +178,7 @@ class PageService:
         )
         quality_report = quality_result.output
 
-        page.generated_text = body
+        page.generated_text = current_text
         page.status = "generated"
         page.layout_json = self.layout_engine.build_layout(book=book, page=page)
         source_refs = content.get("source_refs", [])
@@ -143,7 +187,10 @@ class PageService:
             "source_refs": source_refs,
             "quality_report": quality_report,
             "layout_intent": content.get("layout_intent"),
+            "target_words": target_words,
+            "page_capacity_hint": request.page_capacity_hint.model_dump() if request.page_capacity_hint else None,
             "word_budget_reason": word_budget_reason,
+            "overflow_text": overflow_text if (overflow_text and not overflow_created_page) else None,
         }
         self.memory_engine.update_after_page(db, book=book, page=page)
 
@@ -164,7 +211,7 @@ class PageService:
 
         db.commit()
         db.refresh(page)
-        return page, packet, notes, content, source_refs, quality_report, warnings
+        return page, packet, notes, content, source_refs, quality_report, warnings, overflow_created_page, overflow_warning
 
     def approve_page(self, db: Session, page_id: str) -> Page:
         page = self.get_page(db, page_id)
