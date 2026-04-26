@@ -59,7 +59,7 @@ export function ProfessionalWorkspace({ project, onBack }: { project: Project; o
           <div>Selected sources: {selectedSources.length}</div>
         </section>
         <section className="panel">
-          {book ? <BookPreviewPane book={book} pages={pages} activePageId={activePageId} onSelectPage={setActivePageId} onCreateNextPage={() => {}} /> : null}
+          {book ? <BookPreviewPane book={book} pages={pages} activePageId={activePageId} showCover={false} onSelectCover={() => {}} onSelectPage={setActivePageId} onCreateNextPage={() => {}} /> : null}
           <QualityReportPanel report={result?.quality_report} warnings={result?.warnings || []} />
         </section>
       </div>

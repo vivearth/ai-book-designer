@@ -31,7 +31,10 @@ class DraftGenerationService:
         created_pages: list[Page] = []
 
         # clear existing pages only if empty draft requested? keep existing and append from next page
-        start_number = (db.query(Page).filter(Page.book_id == book.id).order_by(Page.page_number.desc()).first().page_number if db.query(Page).filter(Page.book_id == book.id).count() else 0)
+        existing_count = db.query(Page).filter(Page.book_id == book.id).count()
+        start_number = (db.query(Page).filter(Page.book_id == book.id).order_by(Page.page_number.desc()).first().page_number if existing_count else 0)
+        if existing_count:
+            warnings.append(f"Draft pages were appended after existing {existing_count} page(s).")
 
         for idx, goal in enumerate(goals, start=1):
             page_number = start_number + idx

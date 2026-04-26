@@ -20,3 +20,10 @@ def test_expert_draft_generation(client):
     assert all(p['generated_text'] for p in pages)
     assert all('SYSTEM:' not in p['generated_text'] for p in pages)
     assert res['source_summary']['selected_source_count'] == 2
+
+
+def test_expert_draft_generation_append_warning(client):
+    book = client.post('/api/books', json={'title': 'Append Test', 'book_type_id': 'marketing_story', 'creation_mode': 'expert'}).json()
+    client.post(f"/api/books/{book['id']}/pages", json={'page_number': 1})
+    res = client.post(f"/api/books/{book['id']}/draft/generate", json={'target_page_count': 2, 'book_type_id': 'marketing_story', 'creation_mode': 'expert'}).json()
+    assert any('appended' in w.lower() for w in res['warnings'])

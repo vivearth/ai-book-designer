@@ -22,10 +22,10 @@ BOOK_TYPES: dict[str, BookTypeConfig] = {
     "childrens_illustrated_book": BookTypeConfig("childrens_illustrated_book", "Children’s Illustrated Book", "Short image-led story pages.", "classical", ("classical", "expert"), "fiction_book_page", "optional", "illustrated-story", "warm, playful, clear"),
     "marketing_story": BookTypeConfig("marketing_story", "Marketing Story / Brand Book", "Audience-aware business narrative.", "expert", ("expert", "classical"), "marketing_book_page", "recommended", "modern-editorial", "professional, audience-aware, evidence-led"),
     "finance_explainer": BookTypeConfig("finance_explainer", "Finance Explainer", "Practical finance clarity.", "expert", ("expert", "classical"), "finance_book_page", "recommended", "modern-editorial", "precise, practical, careful"),
-    "thought_leadership": BookTypeConfig("thought_leadership", "Business Thought Leadership", "Point-of-view business writing.", "expert", ("expert", "classical"), "marketing_book_page", "recommended", "modern-editorial", "insightful, structured, practical"),
+    "thought_leadership": BookTypeConfig("thought_leadership", "Business Thought Leadership", "Point-of-view business writing.", "expert", ("expert", "classical"), "general_book_page", "recommended", "modern-editorial", "insightful, structured, practical"),
     "case_study_collection": BookTypeConfig("case_study_collection", "Case Study Collection", "Evidence-led case compendium.", "expert", ("expert",), "marketing_book_page", "required", "modern-editorial", "clear, practical, concrete"),
-    "educational_how_to": BookTypeConfig("educational_how_to", "Educational / How-To Book", "Step-by-step practical teaching.", "classical", ("classical", "expert"), "fiction_book_page", "optional", "classic-novel", "clear, instructive, practical"),
-    "custom": BookTypeConfig("custom", "Custom", "Custom purpose and style.", "classical", ("classical", "expert"), "fiction_book_page", "optional", "classic-novel", "balanced"),
+    "educational_how_to": BookTypeConfig("educational_how_to", "Educational / How-To Book", "Step-by-step practical teaching.", "classical", ("classical", "expert"), "general_book_page", "optional", "classic-novel", "clear, instructive, practical"),
+    "custom": BookTypeConfig("custom", "Custom", "Custom purpose and style.", "classical", ("classical", "expert"), "general_book_page", "optional", "classic-novel", "balanced"),
 }
 
 

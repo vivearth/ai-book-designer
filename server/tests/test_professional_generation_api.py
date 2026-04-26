@@ -59,3 +59,15 @@ def test_no_source_warning_domain_specific(client):
     marketing_page = client.post(f"/api/books/{marketing['id']}/pages", json={'page_number': 1, 'user_prompt': 'Positioning'}).json()
     marketing_gen = client.post(f"/api/pages/{marketing_page['id']}/generate", json={'instruction': 'write page', 'content_mode': 'marketing'}).json()
     assert any('No source material' in w for w in marketing_gen['warnings'])
+
+
+def test_general_book_type_mapping_not_fiction_default(client):
+    edu = client.post('/api/books', json={'title': 'How to', 'book_type_id': 'educational_how_to'}).json()
+    p1 = client.post(f"/api/books/{edu['id']}/pages", json={'page_number': 1, 'user_prompt': 'Teach a concept'}).json()
+    g1 = client.post(f"/api/pages/{p1['id']}/generate", json={'instruction': 'Explain clearly'}).json()
+    assert g1['page']['generation_metadata']['skill_id'] == 'general_book_page'
+
+    custom = client.post('/api/books', json={'title': 'Custom', 'book_type_id': 'custom'}).json()
+    p2 = client.post(f"/api/books/{custom['id']}/pages", json={'page_number': 1, 'user_prompt': 'General section'}).json()
+    g2 = client.post(f"/api/pages/{p2['id']}/generate", json={'instruction': 'Write practical prose'}).json()
+    assert g2['page']['generation_metadata']['skill_id'] == 'general_book_page'

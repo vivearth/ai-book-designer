@@ -24,8 +24,7 @@ export function BookWorkspace({ book, pages, setPages, refreshPages, onBack, onS
   const [draft, setDraft] = useState<Draft>(INITIAL_DRAFT)
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string | null>(null)
-  const [activePageId, setActivePageId] = useState<string | null>(null)
-  const [workspaceMode, setWorkspaceMode] = useState<'editing' | 'composing-new'>('composing-new')
+  const [activeTarget, setActiveTarget] = useState<{ kind: 'cover' } | { kind: 'page'; pageId: string } | { kind: 'new-page' }>({ kind: 'new-page' })
   const [contextPacket, setContextPacket] = useState<Record<string, unknown> | null>(null)
   const [continuityNotes, setContinuityNotes] = useState<string[]>([])
   const [qualityReport, setQualityReport] = useState<any>(null)
@@ -34,18 +33,16 @@ export function BookWorkspace({ book, pages, setPages, refreshPages, onBack, onS
   const [selectedSourceIds, setSelectedSourceIds] = useState<string[]>([])
 
   const sortedPages = useMemo(() => [...pages].sort((a, b) => a.page_number - b.page_number), [pages])
-  const currentPage = workspaceMode === 'composing-new' ? null : sortedPages.find((page) => page.id === activePageId) ?? null
+  const currentPage = activeTarget.kind === 'page' ? sortedPages.find((page) => page.id === activeTarget.pageId) ?? null : null
   const nextPageNumber = (sortedPages[sortedPages.length - 1]?.page_number || 0) + 1
   const bookType = BOOK_TYPE_MAP[book.book_type_id] || BOOK_TYPE_MAP.custom
   const expertMode = book.creation_mode === 'expert'
 
   useEffect(() => {
     if (!sortedPages.length) {
-      setWorkspaceMode('composing-new')
-      setActivePageId(null)
-    } else if (!activePageId) {
-      setWorkspaceMode('editing')
-      setActivePageId(sortedPages[sortedPages.length - 1].id)
+      setActiveTarget({ kind: 'new-page' })
+    } else if (activeTarget.kind === 'new-page') {
+      setActiveTarget({ kind: 'page', pageId: sortedPages[sortedPages.length - 1].id })
     }
   }, [book.id, sortedPages.length])
 
@@ -62,11 +59,10 @@ export function BookWorkspace({ book, pages, setPages, refreshPages, onBack, onS
   }
 
   async function ensurePage() {
-    if (currentPage && workspaceMode === 'editing' && currentPage.status !== 'approved') return currentPage
+    if (currentPage && currentPage.status !== 'approved') return currentPage
     const page = await api.createNextPage(book.id)
     await refreshPages()
-    setWorkspaceMode('editing')
-    setActivePageId(page.id)
+    setActiveTarget({ kind: 'page', pageId: page.id })
     return page
   }
 
@@ -75,7 +71,7 @@ export function BookWorkspace({ book, pages, setPages, refreshPages, onBack, onS
       const page = currentPage ?? (await ensurePage())
       const updated = await api.updatePage(page.id, { user_prompt: draft.user_prompt, user_text: draft.user_text })
       if (draft.imageFile) await api.uploadImage(page.id, draft.imageFile, 'Page inspiration')
-      await refreshPages(); setActivePageId(updated.id); setWorkspaceMode('editing')
+      await refreshPages(); setActiveTarget({ kind: 'page', pageId: updated.id })
     })
   }
 
@@ -96,7 +92,7 @@ export function BookWorkspace({ book, pages, setPages, refreshPages, onBack, onS
       })
       setContextPacket(result.context_packet); setContinuityNotes(result.continuity_notes)
       setQualityReport(result.quality_report); setWarnings(result.warnings || [])
-      await refreshPages(); setActivePageId(result.page.id); setWorkspaceMode('editing')
+      await refreshPages(); setActiveTarget({ kind: 'page', pageId: result.page.id })
     })
   }
 
@@ -104,7 +100,7 @@ export function BookWorkspace({ book, pages, setPages, refreshPages, onBack, onS
     if (!currentPage) return
     await guarded(async () => {
       const result = await api.approvePage(currentPage.id)
-      await refreshPages(); setActivePageId(result.id)
+      await refreshPages(); setActiveTarget({ kind: 'page', pageId: result.id })
     })
   }
 
@@ -112,8 +108,7 @@ export function BookWorkspace({ book, pages, setPages, refreshPages, onBack, onS
     await guarded(async () => {
       const page = await api.createNextPage(book.id)
       await refreshPages()
-      setWorkspaceMode('editing')
-      setActivePageId(page.id)
+      setActiveTarget({ kind: 'page', pageId: page.id })
       setDraft({ ...INITIAL_DRAFT, instruction: draft.instruction })
     })
   }
@@ -139,7 +134,7 @@ export function BookWorkspace({ book, pages, setPages, refreshPages, onBack, onS
           <ChatPane pageNumber={currentPage?.page_number || nextPageNumber} draft={draft} setDraft={setDraft} busy={busy} currentPage={currentPage} onSaveDraft={saveDraft} onGenerate={generatePage} onApprove={approvePage} onNextPage={() => void createNextPage()} />
           {expertMode ? <QualityReportPanel report={qualityReport || undefined} warnings={warnings} /> : null}
         </div>
-        <BookPreviewPane book={book} pages={sortedPages} activePageId={activePageId} onSelectPage={(id) => { setActivePageId(id); setWorkspaceMode(id ? 'editing' : 'composing-new') }} onCreateNextPage={() => void createNextPage()} />
+        <BookPreviewPane book={book} pages={sortedPages} activePageId={activeTarget.kind === 'page' ? activeTarget.pageId : null} showCover={activeTarget.kind === 'cover'} onSelectCover={() => setActiveTarget({ kind: 'cover' })} onSelectPage={(id) => setActiveTarget({ kind: 'page', pageId: id })} onCreateNextPage={() => void createNextPage()} />
       </div>
 
       <DeveloperDiagnostics contextPacket={contextPacket} continuityNotes={continuityNotes} />

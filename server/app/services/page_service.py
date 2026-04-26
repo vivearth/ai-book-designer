@@ -204,19 +204,23 @@ class PageService:
             return requested
 
         config = get_book_type_config(getattr(book, "book_type_id", None))
+        signal = (content_mode or (project.content_direction if project else None) or book.genre or "").lower().strip()
+
         if getattr(book, "book_type_id", None) and book.book_type_id != "custom" and config.default_skill in self.skill_registry.list():
             return config.default_skill
-
-        signal = (content_mode or (project.content_direction if project else None) or book.genre or "").lower().strip()
 
         if any(term in signal for term in ["finance", "cfo", "treasury", "cash"]):
             return "finance_book_page"
         if any(term in signal for term in ["marketing", "go-to-market", "gtm", "sales", "strategy", "leadership", "non-fiction", "nonfiction"]):
             return "marketing_book_page"
-        if any(term in signal for term in ["fiction", "novel", "story", "children", "memoir", "poetry", "educational", "how-to"]):
+        if any(term in signal for term in ["fiction", "novel", "story", "children", "memoir", "poetry"]):
             return "fiction_book_page"
+        if any(term in signal for term in ["educational", "how-to", "guide", "manual", "custom", "general"]):
+            return "general_book_page"
         if project and any(term in (project.content_direction or "").lower() for term in ["marketing", "finance", "sales", "strategy"]):
             return "marketing_book_page"
+        if book.book_type_id == "custom":
+            return "general_book_page"
         return "fiction_book_page"
 
     def _collect_source_chunks(self, db: Session, book: Book, page: Page, request: GenerationRequest, project: Project | None) -> list[SourceChunk]:

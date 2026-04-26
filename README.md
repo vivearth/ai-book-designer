@@ -59,3 +59,23 @@ A **Skill** is a reusable capability. Output varies by project context (sources,
 - Source retrieval is keyword-based (embeddings can be added later).
 - PDF export is still a professional demo level.
 - Image understanding is metadata-only (no OCR/vision analysis by default).
+
+## Unified Book Studio flow
+
+- Landing offers one path: continue an existing book or start a new book.
+- New book uses a wizard:
+  1. select book type
+  2. choose classical/expert mode
+  3. enter book details
+  4. choose format
+  5. expert mode: source setup + draft generation
+
+### Manual verification checklist
+
+- Expert mode creates a project first, then creates the book under that project.
+- Expert source setup appears before workspace.
+- Source upload and processing works from Source Library pane.
+- Draft generation creates multiple pages for empty books (1..N).
+- Cover button shows cover even when pages exist.
+- Next page creates and selects page 2/page 3 correctly.
+- User-selected format is preserved and not overwritten at submit time.
