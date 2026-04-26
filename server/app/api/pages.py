@@ -16,6 +16,11 @@ def create_page(book_id: str, payload: PageCreate, db: Session = Depends(get_db)
     return service.create_page(db, book_id, payload)
 
 
+@router.post("/books/{book_id}/pages/next", response_model=PageRead)
+def create_next_page(book_id: str, db: Session = Depends(get_db)):
+    return service.create_next_page(db, book_id)
+
+
 @router.get("/books/{book_id}/pages", response_model=list[PageRead])
 def list_pages(book_id: str, db: Session = Depends(get_db)):
     return service.list_pages(db, book_id)

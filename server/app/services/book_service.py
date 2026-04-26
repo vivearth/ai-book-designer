@@ -3,6 +3,7 @@ from __future__ import annotations
 from fastapi import HTTPException, UploadFile
 from sqlalchemy.orm import Session
 
+from app.core.book_types import get_book_type_config
 from app.core.config import get_settings
 from app.engines.memory_engine import MemoryEngine
 from app.models.entities import Book, new_id
@@ -30,7 +31,12 @@ class BookService:
 
     def create_book(self, db: Session, payload: BookCreate) -> Book:
         data = payload.model_dump()
-        data["format_settings"] = self._normalize_format_settings(data.get("format_settings"))
+        config = get_book_type_config(data.get("book_type_id"))
+        data["creation_mode"] = data.get("creation_mode") or config.default_mode
+        data["tone"] = data.get("tone") or config.default_tone
+        if not data.get("layout_template"):
+            data["layout_template"] = config.default_format
+        data["format_settings"] = self._normalize_format_settings(data.get("format_settings"), preferred_layout=config.default_format)
         book = Book(**data)
         if not book.title:
             book.title = "Untitled"
@@ -55,8 +61,13 @@ class BookService:
     def update_book(self, db: Session, book_id: str, payload: BookUpdate) -> Book:
         book = self.get_book(db, book_id)
         updates = payload.model_dump(exclude_unset=True)
+        if "book_type_id" in updates and updates["book_type_id"]:
+            config = get_book_type_config(updates["book_type_id"])
+            updates.setdefault("tone", config.default_tone)
+            updates.setdefault("creation_mode", config.default_mode)
         if "format_settings" in updates:
-            updates["format_settings"] = self._normalize_format_settings(updates.get("format_settings"))
+            preferred = updates.get("layout_template") or book.layout_template
+            updates["format_settings"] = self._normalize_format_settings(updates.get("format_settings"), preferred_layout=preferred)
         for key, value in updates.items():
             setattr(book, key, value)
         self.memory_engine.ensure_memory(db, book)
@@ -66,6 +77,8 @@ class BookService:
                 "tone": book.tone,
                 "target_audience": book.target_audience,
                 "writing_style": book.writing_style,
+                "book_type_id": book.book_type_id,
+                "creation_mode": book.creation_mode,
             }
         db.commit()
         db.refresh(book)
@@ -79,8 +92,7 @@ class BookService:
             suffix = "." + file.filename.rsplit(".", maxsplit=1)[-1]
         stored_filename = f"{new_id('cover')}{suffix}"
         output_path = settings.upload_dir / stored_filename
-        contents = await file.read()
-        output_path.write_bytes(contents)
+        output_path.write_bytes(await file.read())
 
         book.cover_image_filename = stored_filename
         book.cover_original_filename = file.filename or stored_filename
@@ -90,10 +102,12 @@ class BookService:
         db.refresh(book)
         return book
 
-    def _normalize_format_settings(self, raw: dict | None) -> dict:
+    def _normalize_format_settings(self, raw: dict | None, *, preferred_layout: str | None = None) -> dict:
         merged = {**DEFAULT_FORMAT_SETTINGS}
+        if preferred_layout:
+            merged["selected_layout_id"] = preferred_layout
+            merged["layout_name"] = preferred_layout.replace("-", " ").title()
         if raw:
             merged.update(raw)
-        preview_scenarios = merged.get("preview_scenarios") or DEFAULT_FORMAT_SETTINGS["preview_scenarios"]
-        merged["preview_scenarios"] = preview_scenarios
+        merged["preview_scenarios"] = merged.get("preview_scenarios") or DEFAULT_FORMAT_SETTINGS["preview_scenarios"]
         return merged

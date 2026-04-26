@@ -64,6 +64,9 @@ export type SourceChunk = {
 export type Book = {
   id: string
   project_id?: string | null
+  book_type_id: string
+  creation_mode: 'classical' | 'expert'
+  objective?: string | null
   title: string
   topic?: string | null
   genre?: string | null
@@ -116,4 +119,12 @@ export type GenerationResponse = {
   source_refs: { source_asset_id?: string; chunk_id?: string; reason?: string }[]
   quality_report?: { score: number; flags: Record<string, boolean>; issues: string[]; suggested_fixes: string[] }
   warnings: string[]
+}
+
+
+export type DraftGenerationResponse = {
+  book_plan: Record<string, unknown>
+  created_pages: Page[]
+  warnings: string[]
+  source_summary: Record<string, unknown>
 }

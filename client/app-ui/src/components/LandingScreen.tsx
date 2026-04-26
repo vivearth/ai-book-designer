@@ -8,15 +8,15 @@ export function LandingScreen({ books, onContinue, onStartNew, revealProjects, s
       <div className="landing-ambient-glow" />
       <div className="landing-copy">
         <p className="kicker">Professional AI content-to-book studio</p>
-        <h1>Turn curated business content into a polished book.</h1>
+        <h1>Design a book your way: page by page or source-first expert draft.</h1>
         <p>
-          Upload campaign material, reports, notes, and visuals. Generate source-grounded pages with a live professional preview.
+          Write page by page, or upload source material and generate a professional draft before editing each page.
         </p>
         <div className="landing-actions">
           <button type="button" className="ghost-button" onClick={() => setRevealProjects(true)}>
             Continue a project
           </button>
-          <button type="button" className="premium-button" onClick={onStartNew}>Start a professional book project</button>
+          <button type="button" className="premium-button" onClick={onStartNew}>Start a new book</button>
         </div>
         {revealProjects ? (
           books.length ? (

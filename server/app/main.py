@@ -35,6 +35,9 @@ def ensure_dev_columns() -> None:
             ("cover_content_type", "ALTER TABLE books ADD COLUMN cover_content_type VARCHAR(120)"),
             ("cover_source", "ALTER TABLE books ADD COLUMN cover_source VARCHAR(40)"),
             ("project_id", "ALTER TABLE books ADD COLUMN project_id VARCHAR(80)"),
+            ("book_type_id", "ALTER TABLE books ADD COLUMN book_type_id VARCHAR(80)"),
+            ("creation_mode", "ALTER TABLE books ADD COLUMN creation_mode VARCHAR(40)"),
+            ("objective", "ALTER TABLE books ADD COLUMN objective TEXT"),
         ]:
             if column not in existing:
                 statements.append(ddl)
@@ -43,6 +46,8 @@ def ensure_dev_columns() -> None:
                 for statement in statements:
                     connection.execute(text(statement))
                 connection.execute(text("UPDATE books SET cover_source = COALESCE(cover_source, 'generated')"))
+                connection.execute(text("UPDATE books SET book_type_id = COALESCE(book_type_id, 'custom')"))
+                connection.execute(text("UPDATE books SET creation_mode = COALESCE(creation_mode, 'classical')"))
     if "pages" in tables:
         existing_pages = {column["name"] for column in inspector.get_columns("pages")}
         if "generation_metadata" not in existing_pages:

@@ -78,6 +78,9 @@ class Book(Base):
 
     id: Mapped[str] = mapped_column(String(80), primary_key=True, default=lambda: new_id("book"))
     project_id: Mapped[str | None] = mapped_column(ForeignKey("projects.id", ondelete="SET NULL"), nullable=True, index=True)
+    book_type_id: Mapped[str] = mapped_column(String(80), default="custom")
+    creation_mode: Mapped[str] = mapped_column(String(40), default="classical")
+    objective: Mapped[str | None] = mapped_column(Text, nullable=True)
     title: Mapped[str] = mapped_column(String(255), default="Untitled")
     topic: Mapped[str | None] = mapped_column(Text, nullable=True)
     genre: Mapped[str | None] = mapped_column(String(120), nullable=True)

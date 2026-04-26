@@ -4,6 +4,7 @@ from fastapi import HTTPException, UploadFile
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
+from app.core.book_types import get_book_type_config
 from app.core.config import get_settings
 from app.engines.context_engine import ContextEngine
 from app.engines.layout_engine import LayoutEngine
@@ -49,6 +50,12 @@ class PageService:
         db.refresh(page)
         return page
 
+
+    def create_next_page(self, db: Session, book_id: str, *, user_prompt: str | None = None, user_text: str | None = None) -> Page:
+        self.get_book(db, book_id)
+        last = db.query(Page).filter(Page.book_id == book_id).order_by(Page.page_number.desc()).first()
+        next_number = (last.page_number if last else 0) + 1
+        return self.create_page(db, book_id, PageCreate(page_number=next_number, user_prompt=user_prompt, user_text=user_text))
     def list_pages(self, db: Session, book_id: str) -> list[Page]:
         self.get_book(db, book_id)
         return db.query(Page).filter(Page.book_id == book_id).order_by(Page.page_number.asc()).all()
@@ -196,16 +203,18 @@ class PageService:
         if requested:
             return requested
 
+        config = get_book_type_config(getattr(book, "book_type_id", None))
+        if getattr(book, "book_type_id", None) and book.book_type_id != "custom" and config.default_skill in self.skill_registry.list():
+            return config.default_skill
+
         signal = (content_mode or (project.content_direction if project else None) or book.genre or "").lower().strip()
 
         if any(term in signal for term in ["finance", "cfo", "treasury", "cash"]):
             return "finance_book_page"
-        if any(term in signal for term in ["marketing", "go-to-market", "gtm", "sales enablement", "thought leadership", "strategy", "non-fiction", "nonfiction", "internal strategy"]):
+        if any(term in signal for term in ["marketing", "go-to-market", "gtm", "sales", "strategy", "leadership", "non-fiction", "nonfiction"]):
             return "marketing_book_page"
-        if any(term in signal for term in ["fiction", "novel", "story", "children", "memoir", "poetry"]):
+        if any(term in signal for term in ["fiction", "novel", "story", "children", "memoir", "poetry", "educational", "how-to"]):
             return "fiction_book_page"
-
-        # Safe default for normal book-like generation.
         if project and any(term in (project.content_direction or "").lower() for term in ["marketing", "finance", "sales", "strategy"]):
             return "marketing_book_page"
         return "fiction_book_page"

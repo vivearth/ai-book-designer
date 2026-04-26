@@ -1,4 +1,4 @@
-import type { Book, GenerationResponse, Page, PageImage, Project, SourceAsset, SourceChunk } from './types'
+import type { Book, DraftGenerationResponse, GenerationResponse, Page, PageImage, Project, SourceAsset, SourceChunk } from './types'
 
 const API_BASE = '/api'
 
@@ -24,6 +24,8 @@ export const api = {
   listPages: (bookId: string) => request<Page[]>(`/books/${bookId}/pages`),
   createPage: (bookId: string, payload: { page_number: number; user_prompt?: string; user_text?: string }) =>
     request<Page>(`/books/${bookId}/pages`, { method: 'POST', body: JSON.stringify(payload) }),
+  createNextPage: (bookId: string) =>
+    request<Page>(`/books/${bookId}/pages/next`, { method: 'POST' }),
   updatePage: (pageId: string, payload: Partial<Page>) => request<Page>(`/pages/${pageId}`, { method: 'PATCH', body: JSON.stringify(payload) }),
   generatePage: (pageId: string, payload: Record<string, unknown>) =>
     request<GenerationResponse>(`/pages/${pageId}/generate`, { method: 'POST', body: JSON.stringify(payload) }),
@@ -33,6 +35,7 @@ export const api = {
     return request<PageImage>(`/pages/${pageId}/images`, { method: 'POST', body })
   },
   exportPdf: (bookId: string) => request<{ book_id: string; filename: string; download_url: string }>(`/books/${bookId}/export/pdf`, { method: 'POST' }),
+  generateDraft: (bookId: string, payload: Record<string, unknown>) => request<DraftGenerationResponse>(`/books/${bookId}/draft/generate`, { method: 'POST', body: JSON.stringify(payload) }),
 
   listProjects: () => request<Project[]>('/projects'),
   createProject: (payload: Partial<Project>) => request<Project>('/projects', { method: 'POST', body: JSON.stringify(payload) }),

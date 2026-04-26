@@ -91,6 +91,9 @@ class ProjectRead(BaseModel):
 
 class BookCreate(BaseModel):
     project_id: str | None = None
+    book_type_id: str = "custom"
+    creation_mode: Literal["classical", "expert"] = "classical"
+    objective: str | None = None
     title: str | None = Field(default="Untitled")
     topic: str | None = None
     genre: str | None = None
@@ -104,6 +107,9 @@ class BookCreate(BaseModel):
 
 class BookUpdate(BaseModel):
     project_id: str | None = None
+    book_type_id: str | None = None
+    creation_mode: Literal["classical", "expert"] | None = None
+    objective: str | None = None
     title: str | None = None
     topic: str | None = None
     genre: str | None = None
@@ -180,6 +186,9 @@ class BookMemoryRead(BaseModel):
 class BookRead(BaseModel):
     id: str
     project_id: str | None
+    book_type_id: str
+    creation_mode: str
+    objective: str | None
     title: str
     topic: str | None
     genre: str | None
@@ -267,3 +276,19 @@ class PdfExportResponse(BaseModel):
     book_id: str
     filename: str
     download_url: str
+
+
+class DraftGenerationRequest(BaseModel):
+    target_page_count: int | None = None
+    chapter_count: int | None = None
+    source_asset_ids: list[str] = Field(default_factory=list)
+    instructions: str | None = None
+    book_type_id: str | None = None
+    creation_mode: Literal["classical", "expert"] = "expert"
+
+
+class DraftGenerationResponse(BaseModel):
+    book_plan: dict[str, Any]
+    created_pages: list[PageRead]
+    warnings: list[str] = Field(default_factory=list)
+    source_summary: dict[str, Any] = Field(default_factory=dict)
