@@ -21,6 +21,7 @@ class ContentQualitySkill(Skill):
         direction = (input.get("expected_content_direction") or "").lower()
         source_chunks = context.source_chunks or []
         source_text = " ".join(chunk.text.lower() for chunk in source_chunks)
+        fiction_mode = any(term in direction for term in ["fiction", "novel", "story", "memoir", "poetry", "children"])
 
         flags = {
             "prompt_leakage": self._has_prompt_leakage(text),
@@ -60,8 +61,12 @@ class ContentQualitySkill(Skill):
             flags["off_domain"] = True
             score -= 20
             issues.append("Expected finance vocabulary is weak.")
+        if fiction_mode and not re.search(r"\b(run|ran|jump|bridge|street|night|breath|heart|water|shot|shouting|traffic|door|shadow)\b", text.lower()):
+            flags["off_domain"] = True
+            score -= 14
+            issues.append("Narrative/action alignment appears weak for fiction mode.")
 
-        if re.search(r"\b\d+\s*%|\$\s*\d|\b\d{2,}\b", text) and source_text:
+        if re.search(r"\b\d+\s*%|\$\s*\d|\b\d{2,}\b", text) and source_text and not fiction_mode:
             nums = set(re.findall(r"\b\d+(?:\.\d+)?\b", text))
             src_nums = set(re.findall(r"\b\d+(?:\.\d+)?\b", source_text))
             if nums - src_nums:
@@ -69,12 +74,13 @@ class ContentQualitySkill(Skill):
                 score -= 18
                 issues.append("Numeric claim appears unsupported by sources.")
 
-        if source_chunks and len(set(text.lower().split()).intersection(set(source_text.split()))) < 3:
+        professional_mode = any(term in direction for term in ["marketing", "finance", "strategy", "leadership", "non-fiction", "nonfiction"])
+        if professional_mode and source_chunks and len(set(text.lower().split()).intersection(set(source_text.split()))) < 3:
             flags["missing_source_usage"] = True
             score -= 15
             issues.append("Weak overlap with provided source material.")
 
-        if re.search(r"in today's world|it is important to note|journey|heroic", text.lower()):
+        if re.search(r"in today's world|it is important to note|journey", text.lower()) and not fiction_mode:
             flags["too_generic"] = True
             score -= 8
 

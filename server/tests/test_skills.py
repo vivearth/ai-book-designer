@@ -10,6 +10,7 @@ def test_registry_and_skill_output():
     assert 'marketing_book_page' in listed
     assert 'finance_book_page' in listed
     assert 'content_quality' in listed
+    assert 'fiction_book_page' in listed
 
     skill = registry.get('marketing_book_page')
     result = asyncio.run(skill.run({'page_direction': 'Explain messaging clarity', 'target_words': 120}, SkillContext(db=None, source_chunks=[])))

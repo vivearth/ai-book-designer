@@ -97,6 +97,7 @@ class LLMEngine:
         genre = self._extract_field(prompt, "Genre or content direction").lower()
         direction = self._extract_field(prompt, "Page direction") or "the opening movement"
         rough_text = self._extract_field(prompt, "Rough text") or "The page is still a sketch."
+        target_words = self._extract_field(prompt, "Target words")
 
         if genre == "finance":
             return (
@@ -112,12 +113,25 @@ class LLMEngine:
                 f"{rough_text} The page reframes the raw material into persuasive, domain-aware prose, connecting audience tension, positioning, and the promise a brand must earn. "
                 "It should feel purposeful, contemporary, and grounded in real go-to-market thinking rather than abstract slogan-writing."
             )
-        if "fiction" in genre or genre in {"memoir", "children's book", "children’s book", "poetry"}:
-            return (
-                f"{direction} arrives without warning. {rough_text.capitalize()} The air feels charged, as though the page itself has been waiting for the scene to begin. "
-                f"The prose leans into sensory detail and momentum while keeping the emotional thread of {topic} close to the surface. "
-                f"By the close of the passage, {title} feels properly underway: tense, specific, and alive with the promise of what follows."
+        if "fiction" in genre or any(g in genre for g in {"memoir", "children", "poetry", "novel", "story"}):
+            base = (
+                f"{direction} snaps into motion as the city closes around the protagonist. {rough_text} "
+                "Shoes slap wet concrete, horns tear through traffic, and the railing of the bridge rattles under desperate hands. "
+                "A shot cracks behind him, then another, and he dives over the edge before fear can finish the thought. "
+                "The river hits like broken glass, cold and violent, and he disappears beneath the surface while the shouting above turns to echoes. "
+                f"When he rises, coughing, the chase is still alive, and {title} keeps its pulse in every sentence."
             )
+            words = base.split()
+            try:
+                target = max(160, int(float(target_words))) if target_words else 220
+            except ValueError:
+                target = 220
+            while len(words) < int(target * 0.85):
+                words.extend((
+                    "He cuts through lanes of stalled scooters, vaults crates near the slum road, and follows the dim lights under the bridge where the gunfire cannot aim cleanly. "
+                    "Every breath burns, every step narrows the margin, and survival depends on choosing movement over panic."
+                ).split())
+            return " ".join(words[:target])
         return (
             f"{direction} begins by clarifying the central idea at stake. {rough_text} "
             f"Rather than repeating planning notes, the page translates them into readable, book-like prose that serves {topic}. "

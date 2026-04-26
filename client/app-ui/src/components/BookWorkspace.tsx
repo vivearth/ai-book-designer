@@ -87,9 +87,17 @@ export function BookWorkspace({
       if (draft.imageFile) {
         await api.uploadImage(page.id, draft.imageFile, 'Page inspiration')
       }
+      const genre = (book.genre || '').toLowerCase()
+      const contentMode =
+        genre.includes('finance') ? 'finance' :
+        genre.includes('marketing') ? 'marketing' :
+        genre.includes('fiction') || genre.includes('novel') || genre.includes('story') ? 'fiction' :
+        genre || 'general'
+      const allowNewCharacters = contentMode === 'fiction' && (currentPage?.page_number === 1 || !book.memory?.global_summary)
       const result: GenerationResponse = await api.generatePage(page.id, {
         instruction: draft.instruction,
-        allow_new_characters: false,
+        allow_new_characters: allowNewCharacters,
+        content_mode: contentMode,
       })
       setContextPacket(result.context_packet)
       setContinuityNotes(result.continuity_notes)

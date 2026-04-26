@@ -81,10 +81,10 @@ class PageService:
 
         source_chunks = self._collect_source_chunks(db, book, page, request, project)
         warnings: list[str] = []
-        if not source_chunks:
-            warnings.append("No source material was used for this generation.")
 
         skill_id = self._resolve_skill_id(request.skill_id, request.content_mode, project, book)
+        if not source_chunks and skill_id in {"marketing_book_page", "finance_book_page"}:
+            warnings.append("No source material was used for this professional generation.")
         skill = self.skill_registry.get(skill_id)
         if not skill:
             raise HTTPException(status_code=400, detail=f"Unknown skill_id: {skill_id}")
@@ -195,10 +195,20 @@ class PageService:
     def _resolve_skill_id(self, requested: str | None, content_mode: str | None, project: Project | None, book: Book) -> str:
         if requested:
             return requested
-        signal = (content_mode or (project.content_direction if project else book.genre) or "").lower()
-        if "finance" in signal:
+
+        signal = (content_mode or (project.content_direction if project else None) or book.genre or "").lower().strip()
+
+        if any(term in signal for term in ["finance", "cfo", "treasury", "cash"]):
             return "finance_book_page"
-        return "marketing_book_page"
+        if any(term in signal for term in ["marketing", "go-to-market", "gtm", "sales enablement", "thought leadership", "strategy", "non-fiction", "nonfiction", "internal strategy"]):
+            return "marketing_book_page"
+        if any(term in signal for term in ["fiction", "novel", "story", "children", "memoir", "poetry"]):
+            return "fiction_book_page"
+
+        # Safe default for normal book-like generation.
+        if project and any(term in (project.content_direction or "").lower() for term in ["marketing", "finance", "sales", "strategy"]):
+            return "marketing_book_page"
+        return "fiction_book_page"
 
     def _collect_source_chunks(self, db: Session, book: Book, page: Page, request: GenerationRequest, project: Project | None) -> list[SourceChunk]:
         if not project:
