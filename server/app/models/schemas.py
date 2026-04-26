@@ -1,9 +1,25 @@
 from __future__ import annotations
 
 from datetime import datetime
-from typing import Any
+from typing import Any, Literal
 
 from pydantic import BaseModel, Field
+
+
+class PreviewScenario(BaseModel):
+    id: Literal["image-only", "text-with-image", "text-only"]
+    title: str
+    description: str
+
+
+class FormatSettings(BaseModel):
+    selected_layout_id: Literal["classic-novel", "illustrated-story", "modern-editorial"] = "classic-novel"
+    layout_name: str = "Classic Novel"
+    page_size: str = "A5"
+    margin_style: str = "wide"
+    typography_style: str = "classic-serif"
+    image_policy: str = "minimal"
+    preview_scenarios: list[PreviewScenario] = Field(default_factory=list)
 
 
 class BookCreate(BaseModel):
@@ -15,6 +31,7 @@ class BookCreate(BaseModel):
     writing_style: str | None = None
     page_size: str = "A4"
     layout_template: str = "classic"
+    format_settings: FormatSettings | dict[str, Any] | None = None
 
 
 class BookUpdate(BaseModel):
@@ -27,6 +44,11 @@ class BookUpdate(BaseModel):
     page_size: str | None = None
     layout_template: str | None = None
     status: str | None = None
+    format_settings: FormatSettings | dict[str, Any] | None = None
+    cover_image_filename: str | None = None
+    cover_original_filename: str | None = None
+    cover_content_type: str | None = None
+    cover_source: str | None = None
 
 
 class PageImageRead(BaseModel):
@@ -98,6 +120,11 @@ class BookRead(BaseModel):
     created_at: datetime
     updated_at: datetime
     memory: BookMemoryRead | None = None
+    format_settings: dict[str, Any] | None = None
+    cover_image_filename: str | None = None
+    cover_original_filename: str | None = None
+    cover_content_type: str | None = None
+    cover_source: str | None = None
 
     model_config = {"from_attributes": True}
 
