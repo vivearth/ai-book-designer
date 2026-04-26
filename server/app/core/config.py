@@ -1,5 +1,7 @@
 from functools import lru_cache
 from pathlib import Path
+
+from pydantic import Field
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -7,12 +9,18 @@ class Settings(BaseSettings):
     model_config = SettingsConfigDict(env_file=".env", extra="ignore")
 
     app_name: str = "AI Book Designer POC"
-    database_url: str = "postgresql+psycopg2://book_user:book_password@db:5432/book_designer"
-    model_provider: str = "mock"
-    ollama_base_url: str = "http://ollama:11434"
-    ollama_model: str = "qwen3:8b"
-    server_cors_origins: str = "http://localhost:5173,http://localhost:3000,http://localhost:8080"
-    data_dir: Path = Path("/app/data")
+    database_url: str = Field(
+        default="sqlite:///./data/book_designer.db",
+        alias="DATABASE_URL",
+    )
+    model_provider: str = Field(default="mock", alias="MODEL_PROVIDER")
+    ollama_base_url: str = Field(default="http://ollama:11434", alias="OLLAMA_BASE_URL")
+    ollama_model: str = Field(default="qwen3:8b", alias="OLLAMA_MODEL")
+    server_cors_origins: str = Field(
+        default="http://localhost:5173,http://localhost:3000,http://localhost:8080",
+        alias="SERVER_CORS_ORIGINS",
+    )
+    data_dir: Path = Field(default=Path("./data"), alias="DATA_DIR")
 
     @property
     def upload_dir(self) -> Path:

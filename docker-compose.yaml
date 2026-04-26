@@ -28,6 +28,7 @@ services:
       OLLAMA_BASE_URL: ${OLLAMA_BASE_URL:-http://ollama:11434}
       OLLAMA_MODEL: ${OLLAMA_MODEL:-qwen3:8b}
       SERVER_CORS_ORIGINS: ${SERVER_CORS_ORIGINS:-http://localhost:5173,http://localhost:3000,http://localhost:8080}
+      DATA_DIR: ${DATA_DIR:-/app/data}
     ports:
       - "8000:8000"
     volumes:
