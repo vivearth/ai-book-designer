@@ -52,6 +52,41 @@ PYTHONPATH=server pytest server/tests -q
 
 A **Skill** is a reusable capability. Output varies by project context (sources, direction, brand profile, format profile), not by one-off UI prompt hacks.
 
+## Local model routing and quality (Ollama)
+
+Generation quality depends heavily on local model choice. The app supports per-skill model routing:
+
+- `FICTION_LLM_MODEL` → fiction pages
+- `MARKETING_LLM_MODEL` → marketing pages
+- `FINANCE_LLM_MODEL` → finance pages
+- `GENERAL_LLM_MODEL` → general/educational pages
+- `QUALITY_LLM_MODEL` → quality tasks (future-safe route)
+- fallback order: skill model → `DEFAULT_LLM_MODEL` → `OLLAMA_MODEL`
+
+Recommended local models:
+
+- `qwen2.5:14b-instruct` (strong default for zero-cost local writing)
+- `qwen2.5:32b-instruct` (if hardware allows)
+- `mistral-small` (if available in your local setup)
+- `llama3.1:8b` (baseline fallback only)
+
+The app uses **two-pass generation** (plan beats, then prose) for stronger page-level quality without paid APIs or fine-tuning.
+
+## Zero-cost quality improvement path
+
+1. Choose a stronger local model.
+2. Use skill-specific prompt contracts.
+3. Use source retrieval for professional books.
+4. Keep quality checks enabled (repetition, leakage, domain/source relevance).
+5. Collect approved pages as future training data.
+
+### Optional future LoRA path (not implemented in this branch)
+
+Once enough pages are approved, export training pairs:
+
+- Input: book type + page goal + source chunks + target words
+- Output: approved final page
+
 ## Known limitations
 
 - No auth/RBAC yet.

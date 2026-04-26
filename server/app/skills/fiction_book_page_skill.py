@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from app.skills.base import Skill, SkillContext, SkillResult
+from app.skills.writing_flow import maybe_run_two_pass_page_generation
 
 
 class FictionBookPageSkill(Skill):
@@ -8,22 +9,6 @@ class FictionBookPageSkill(Skill):
     name = "Fiction book page"
     description = "Generates narrative fiction pages from page direction, rough notes, book context, and continuity"
     version = "1.0"
-
-    def _expand_mock(self, seed: str, target_words: int, direction: str, rough_text: str) -> str:
-        paragraphs = [
-            seed.strip(),
-            (
-                f"{direction} keeps tightening as the street noise rises and every decision has to be made in motion. "
-                f"{rough_text} The scene stays close to the body: breath, impact, split-second choices, and the fear of losing one step."
-            ),
-            "Traffic blurs into horns, shouting, and braking metal while the protagonist pushes through gaps that were never meant for escape.",
-            "By the end of the beat, the danger is still active, but the character has earned one fragile breath before the next turn.",
-        ]
-        result = "\n\n".join([p for p in paragraphs if p])
-        words = result.split()
-        while len(words) < max(120, int(target_words * 0.7)):
-            words.extend((paragraphs[1] + " " + paragraphs[2]).split())
-        return " ".join(words[: max(140, int(target_words * 0.95))])
 
     async def run(self, input: dict, context: SkillContext) -> SkillResult:  # noqa: A003
         book = context.book
@@ -40,43 +25,29 @@ class FictionBookPageSkill(Skill):
         if page and page.layout_json:
             layout = f"Composition: {page.layout_json.get('composition', 'text_only')}"
 
-        prompt = f"""
-Write narrative fiction prose for a book page.
-
-Book title: {book.title if book else 'Untitled'}
-Book topic: {book.topic if book else ''}
-Genre or content direction: {book.genre if book else 'fiction'}
-Page direction: {page_direction}
-Rough text: {rough_text}
-Target words: {target_words}
-Book memory: {memory}
-Recent pages: {recent_text}
-{layout}
-
-Requirements:
-- Return only reader-facing prose.
-- No JSON, labels, or system text.
-- Preserve named entities from rough text.
-- Keep continuity with memory and recent pages.
-- Use sensory detail and clear action.
-- Keep prose compact enough to fit a single designed book page.
-- Do not repeat sentences or phrase blocks to pad length.
-""".strip()
-
-        generated, notes = await context.llm_engine.generate_text(prompt, temperature=0.75)
-        text = generated.strip()
-
-        provider = context.llm_engine.settings.model_provider.lower().strip()
-        min_words = max(120, int(target_words * 0.5))
-        if len(text.split()) < min_words:
-            if provider == "mock":
-                text = self._expand_mock(text, target_words, page_direction, rough_text)
-            else:
-                revise_prompt = prompt + "\n\nThe previous draft was too short. Expand the same scene to the target word budget while staying concrete and coherent."
-                revised, more_notes = await context.llm_engine.generate_text(revise_prompt, temperature=0.7)
-                notes.extend(more_notes)
-                if len(revised.split()) > len(text.split()):
-                    text = revised
+        text, notes, plan = await maybe_run_two_pass_page_generation(
+            context=context,
+            skill_kind="fiction",
+            title=book.title if book else "Untitled",
+            topic=book.topic if book else "",
+            book_type=book.book_type_id if book else "fiction",
+            previous_summary=f"{memory}\n{recent_text}".strip(),
+            direction=page_direction,
+            rough_notes=rough_text,
+            source_excerpts="",
+            target_words=target_words,
+            composition=layout or "text_only",
+            domain_instructions=(
+                "Write immersive scene prose. Opening motion/emotion, concrete action beats, sensory detail, tension escalation, and a clean handoff end. "
+                "Do not summarize abstractly. Do not use marketing/business language unless user notes explicitly require it."
+            ),
+            few_shot=(
+                "Few-shot:\n"
+                "Input direction: A chase through traffic. Rough notes: protagonist runs across wet roads, gunfire behind him, jumps from bridge into river.\n"
+                "Output style: tense prose with roads, horns, gunshots, bridge, water, breath, fear."
+            ),
+            strict_quality=bool(input.get("strict_quality")),
+        )
 
         return SkillResult(
             output={
@@ -86,7 +57,8 @@ Requirements:
                 "image_guidance": "Use cinematic scene imagery only if it supports this page.",
                 "layout_intent": "narrative_fiction",
                 "source_refs": [],
-                "quality_notes": ["Narrative scene generated from prompt, memory, and continuity context."],
+                "quality_notes": ["Narrative scene generated from two-pass fiction flow."],
+                "plan_summary": plan,
             },
             notes=notes,
         )

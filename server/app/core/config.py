@@ -16,6 +16,12 @@ class Settings(BaseSettings):
     model_provider: str = Field(default="mock", alias="MODEL_PROVIDER")
     ollama_base_url: str = Field(default="http://ollama:11434", alias="OLLAMA_BASE_URL")
     ollama_model: str = Field(default="qwen3:8b", alias="OLLAMA_MODEL")
+    default_llm_model: str | None = Field(default=None, alias="DEFAULT_LLM_MODEL")
+    fiction_llm_model: str | None = Field(default=None, alias="FICTION_LLM_MODEL")
+    marketing_llm_model: str | None = Field(default=None, alias="MARKETING_LLM_MODEL")
+    finance_llm_model: str | None = Field(default=None, alias="FINANCE_LLM_MODEL")
+    general_llm_model: str | None = Field(default=None, alias="GENERAL_LLM_MODEL")
+    quality_llm_model: str | None = Field(default=None, alias="QUALITY_LLM_MODEL")
     server_cors_origins: str = Field(
         default="http://localhost:5173,http://localhost:3000,http://localhost:8080",
         alias="SERVER_CORS_ORIGINS",

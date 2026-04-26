@@ -18,12 +18,30 @@ class LLMEngine:
     def __init__(self) -> None:
         self.settings = get_settings()
 
-    async def generate_text(self, prompt: str, *, temperature: float = 0.6) -> tuple[str, list[str]]:
+    MODEL_PURPOSE_MAP = {
+        "fiction": "fiction_llm_model",
+        "marketing": "marketing_llm_model",
+        "finance": "finance_llm_model",
+        "general": "general_llm_model",
+        "quality": "quality_llm_model",
+    }
+
+    async def generate_text(
+        self,
+        prompt: str,
+        *,
+        temperature: float = 0.6,
+        model: str | None = None,
+        purpose: str | None = None,
+    ) -> tuple[str, list[str]]:
         provider = self.settings.model_provider.lower().strip()
-        notes: list[str] = []
+        resolved_model, fallback_used = self.resolve_model(model=model, purpose=purpose)
+        notes: list[str] = [f"provider={provider}", f"model={resolved_model}"]
+        if fallback_used:
+            notes.append(f"model_fallback={fallback_used}")
         if provider == "ollama":
             try:
-                text = await self._ollama_generate(prompt, temperature=temperature)
+                text = await self._ollama_generate(prompt, temperature=temperature, model=resolved_model)
                 sanitized, sanitize_notes = self.sanitize_generated_page_text(text)
                 notes.extend(sanitize_notes)
                 if sanitized.strip():
@@ -45,10 +63,23 @@ class LLMEngine:
         except json.JSONDecodeError:
             return {"raw_response": response}
 
-    async def _ollama_generate(self, prompt: str, *, temperature: float) -> str:
+    def resolve_model(self, *, model: str | None = None, purpose: str | None = None) -> tuple[str, str | None]:
+        if model:
+            return model, None
+        purpose_key = (purpose or "").lower().strip()
+        mapped_setting = self.MODEL_PURPOSE_MAP.get(purpose_key)
+        if mapped_setting:
+            configured = getattr(self.settings, mapped_setting, None)
+            if configured:
+                return configured, f"{purpose_key}->skill_specific"
+        if self.settings.default_llm_model:
+            return self.settings.default_llm_model, "default_llm_model"
+        return self.settings.ollama_model, "ollama_model"
+
+    async def _ollama_generate(self, prompt: str, *, temperature: float, model: str) -> str:
         url = f"{self.settings.ollama_base_url.rstrip('/')}/api/generate"
         payload = {
-            "model": self.settings.ollama_model,
+            "model": model,
             "prompt": prompt,
             "stream": False,
             "options": {"temperature": temperature},

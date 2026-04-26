@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from app.skills.base import Skill, SkillContext, SkillResult
+from app.skills.writing_flow import maybe_run_two_pass_page_generation
 
 
 class MarketingBookPageSkill(Skill):
@@ -16,27 +17,35 @@ class MarketingBookPageSkill(Skill):
         source_text = " ".join(chunk.text for chunk in source_chunks[:3])
         rough = input.get("rough_text") or ""
 
-        if source_text.strip():
-            body = (
-                f"{page_goal}. The material consistently points to message-market fit as the first operational lever. "
-                f"Across the selected sources, teams improve performance when messaging reflects buying committee pressure, "
-                f"decision friction, and proof requirements. {rough} The practical takeaway is to anchor positioning in specific "
-                f"commercial pain, then align campaign assets so sales and marketing narrate one coherent value story."
-            )
-            refs = [{"source_asset_id": c.source_asset_id, "chunk_id": c.id, "reason": "keyword overlap"} for c in source_chunks[:4]]
-            warnings: list[str] = []
-        else:
-            body = (
-                f"{page_goal}. Without direct source evidence, this draft remains intentionally careful and conceptual. "
-                "Messaging clarity matters because buyers evaluate risk before they evaluate creativity, and teams lose momentum "
-                "when positioning, proof points, and audience pain are misaligned. A practical first move is to define the core problem "
-                "for each stakeholder group, then align campaign language and sales narratives around that shared commercial context."
-            )
-            refs = []
-            warnings = ["No source chunks were available; output is conceptual and should be validated."]
-
-        words = body.split()
-        body = " ".join(words[:target_words])
+        body, notes, plan = await maybe_run_two_pass_page_generation(
+            context=context,
+            skill_kind="marketing",
+            title=context.book.title if context.book else "Untitled",
+            topic=context.book.topic if context.book else "",
+            book_type=context.book.book_type_id if context.book else "marketing",
+            previous_summary=(context.book.memory.global_summary if (context.book and context.book.memory) else ""),
+            direction=page_goal,
+            rough_notes=rough,
+            source_excerpts=source_text,
+            target_words=int(target_words),
+            composition=(context.page.layout_json or {}).get("composition", "text_only") if context.page else "text_only",
+            audience=(context.project.audience if context.project else ""),
+            objective=(context.project.objective if context.project else ""),
+            domain_instructions=(
+                "Use source-backed professional prose with structure: insight, source-backed context, implication, practical takeaway. "
+                "Never invent exact metrics/customer names/numbers. Avoid generic filler and avoid fictional scene narration."
+            ),
+            few_shot=(
+                "Few-shot source: campaign focused on reducing acquisition waste by aligning messaging with buying committee pain points.\n"
+                "Goal: why messaging clarity matters in B2B growth.\n"
+                "Output: professional, source-concept grounded page."
+            ),
+            strict_quality=bool(input.get("strict_quality")),
+        )
+        refs = [{"source_asset_id": c.source_asset_id, "chunk_id": c.id, "reason": "keyword overlap"} for c in source_chunks[:4]]
+        warnings: list[str] = []
+        if not source_text.strip():
+            warnings.append("No source chunks were available; output is conceptual and should be validated.")
         return SkillResult(
             output={
                 "headline": "Why messaging clarity compounds growth decisions",
@@ -46,6 +55,8 @@ class MarketingBookPageSkill(Skill):
                 "layout_intent": "professional_marketing",
                 "source_refs": refs,
                 "quality_notes": ["Avoid unsupported claims and keep statements evidence-led."],
+                "plan_summary": plan,
             },
+            notes=notes,
             warnings=warnings,
         )
