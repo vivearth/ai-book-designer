@@ -1,3 +1,5 @@
+export type PreviewScenario = { id: 'image-only' | 'text-with-image' | 'text-only'; title: string; description: string }
+
 export type BookMemory = {
   global_summary: string
   characters: unknown[]
@@ -6,12 +8,6 @@ export type BookMemory = {
   rules: unknown[]
   unresolved_threads: unknown[]
   style_guide: Record<string, unknown>
-}
-
-export type PreviewScenario = {
-  id: 'image-only' | 'text-with-image' | 'text-only'
-  title: string
-  description: string
 }
 
 export type FormatSettings = {
@@ -24,10 +20,53 @@ export type FormatSettings = {
   preview_scenarios: PreviewScenario[]
 }
 
-export type CoverSource = 'uploaded' | 'generated' | 'none'
+export type Project = {
+  id: string
+  name: string
+  description?: string | null
+  content_direction: string
+  audience?: string | null
+  objective?: string | null
+  status: string
+  created_at: string
+  updated_at: string
+}
+
+export type SourceAsset = {
+  id: string
+  project_id: string
+  title: string
+  original_filename?: string | null
+  stored_filename?: string | null
+  content_type?: string | null
+  source_type: string
+  extracted_text?: string | null
+  summary?: string | null
+  tags: string[]
+  asset_metadata: Record<string, unknown>
+  status: string
+  created_at: string
+  updated_at: string
+}
+
+export type SourceChunk = {
+  id: string
+  source_asset_id: string
+  project_id: string
+  chunk_index: number
+  text: string
+  summary?: string | null
+  token_estimate?: number | null
+  metadata: Record<string, unknown>
+  created_at: string
+}
 
 export type Book = {
   id: string
+  project_id?: string | null
+  book_type_id: string
+  creation_mode: 'classical' | 'expert'
+  objective?: string | null
   title: string
   topic?: string | null
   genre?: string | null
@@ -44,7 +83,7 @@ export type Book = {
   cover_image_filename?: string | null
   cover_original_filename?: string | null
   cover_content_type?: string | null
-  cover_source?: CoverSource | null
+  cover_source?: 'uploaded' | 'generated' | 'none' | null
 }
 
 export type PageImage = {
@@ -65,6 +104,7 @@ export type Page = {
   generated_text?: string | null
   final_text?: string | null
   layout_json: Record<string, unknown>
+  generation_metadata: Record<string, unknown>
   status: string
   created_at: string
   updated_at: string
@@ -75,4 +115,18 @@ export type GenerationResponse = {
   page: Page
   context_packet: Record<string, unknown>
   continuity_notes: string[]
+  skill_output?: Record<string, unknown>
+  source_refs: { source_asset_id?: string; chunk_id?: string; reason?: string }[]
+  quality_report?: { score: number; flags: Record<string, boolean>; issues: string[]; suggested_fixes: string[] }
+  warnings: string[]
+  overflow_created_page?: Page | null
+  overflow_warning?: string | null
+}
+
+
+export type DraftGenerationResponse = {
+  book_plan: Record<string, unknown>
+  created_pages: Page[]
+  warnings: string[]
+  source_summary: Record<string, unknown>
 }

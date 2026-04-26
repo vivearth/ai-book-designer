@@ -7,16 +7,16 @@ export function LandingScreen({ books, onContinue, onStartNew, revealProjects, s
       <div className="landing-ambient-grid" />
       <div className="landing-ambient-glow" />
       <div className="landing-copy">
-        <p className="kicker">AI-assisted book design studio</p>
-        <h1>Design your book before you write all of it.</h1>
+        <p className="kicker">Professional AI content-to-book studio</p>
+        <h1>Design a book your way: page by page or source-first expert draft.</h1>
         <p>
-          Start with a title, a direction, and a format. Then shape every page with an assistant that remembers the book you are building.
+          Write page by page, or upload source material and generate a professional draft before editing each page.
         </p>
         <div className="landing-actions">
           <button type="button" className="ghost-button" onClick={() => setRevealProjects(true)}>
-            Continue working on your books
+            Continue a project
           </button>
-          <button type="button" className="premium-button" onClick={onStartNew}>Write a new book</button>
+          <button type="button" className="premium-button" onClick={onStartNew}>Start a new book</button>
         </div>
         {revealProjects ? (
           books.length ? (

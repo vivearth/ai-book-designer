@@ -17,10 +17,70 @@ def new_id(prefix: str) -> str:
     return f"{prefix}_{uuid4().hex}"
 
 
+class Project(Base):
+    __tablename__ = "projects"
+
+    id: Mapped[str] = mapped_column(String(80), primary_key=True, default=lambda: new_id("proj"))
+    name: Mapped[str] = mapped_column(String(255), default="Untitled Project")
+    description: Mapped[str | None] = mapped_column(Text, nullable=True)
+    content_direction: Mapped[str] = mapped_column(String(120), default="Marketing")
+    audience: Mapped[str | None] = mapped_column(String(255), nullable=True)
+    objective: Mapped[str | None] = mapped_column(Text, nullable=True)
+    status: Mapped[str] = mapped_column(String(40), default="draft")
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utc_now)
+    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utc_now, onupdate=utc_now)
+
+    books: Mapped[list[Book]] = relationship(back_populates="project")
+    brand_profiles: Mapped[list[BrandProfile]] = relationship(back_populates="project", cascade="all, delete-orphan")
+    format_profiles: Mapped[list[FormatProfile]] = relationship(back_populates="project", cascade="all, delete-orphan")
+    source_assets: Mapped[list[SourceAsset]] = relationship(back_populates="project", cascade="all, delete-orphan")
+
+
+class BrandProfile(Base):
+    __tablename__ = "brand_profiles"
+
+    id: Mapped[str] = mapped_column(String(80), primary_key=True, default=lambda: new_id("brand"))
+    project_id: Mapped[str | None] = mapped_column(ForeignKey("projects.id", ondelete="CASCADE"), nullable=True, index=True)
+    name: Mapped[str] = mapped_column(String(120), default="Professional advisory")
+    tone: Mapped[str] = mapped_column(String(255), default="confident, clear, evidence-led, useful")
+    writing_rules: Mapped[list] = mapped_column(JSON, default=list)
+    approved_terms: Mapped[list] = mapped_column(JSON, default=list)
+    banned_terms: Mapped[list] = mapped_column(JSON, default=list)
+    formatting_notes: Mapped[dict] = mapped_column(JSON, default=dict)
+    disclaimer_notes: Mapped[str | None] = mapped_column(Text, nullable=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utc_now)
+    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utc_now, onupdate=utc_now)
+
+    project: Mapped[Project | None] = relationship(back_populates="brand_profiles")
+
+
+class FormatProfile(Base):
+    __tablename__ = "format_profiles"
+
+    id: Mapped[str] = mapped_column(String(80), primary_key=True, default=lambda: new_id("fmt"))
+    project_id: Mapped[str | None] = mapped_column(ForeignKey("projects.id", ondelete="CASCADE"), nullable=True, index=True)
+    name: Mapped[str] = mapped_column(String(120), default="Professional default")
+    layout_id: Mapped[str] = mapped_column(String(80), default="modern-editorial")
+    page_size: Mapped[str] = mapped_column(String(60), default="A4")
+    typography: Mapped[dict] = mapped_column(JSON, default=dict)
+    margins: Mapped[dict] = mapped_column(JSON, default=dict)
+    component_rules: Mapped[dict] = mapped_column(JSON, default=dict)
+    image_policy: Mapped[dict] = mapped_column(JSON, default=dict)
+    export_rules: Mapped[dict] = mapped_column(JSON, default=dict)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utc_now)
+    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utc_now, onupdate=utc_now)
+
+    project: Mapped[Project | None] = relationship(back_populates="format_profiles")
+
+
 class Book(Base):
     __tablename__ = "books"
 
     id: Mapped[str] = mapped_column(String(80), primary_key=True, default=lambda: new_id("book"))
+    project_id: Mapped[str | None] = mapped_column(ForeignKey("projects.id", ondelete="SET NULL"), nullable=True, index=True)
+    book_type_id: Mapped[str] = mapped_column(String(80), default="custom")
+    creation_mode: Mapped[str] = mapped_column(String(40), default="classical")
+    objective: Mapped[str | None] = mapped_column(Text, nullable=True)
     title: Mapped[str] = mapped_column(String(255), default="Untitled")
     topic: Mapped[str | None] = mapped_column(Text, nullable=True)
     genre: Mapped[str | None] = mapped_column(String(120), nullable=True)
@@ -38,6 +98,7 @@ class Book(Base):
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utc_now)
     updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utc_now, onupdate=utc_now)
 
+    project: Mapped[Project | None] = relationship(back_populates="books")
     pages: Mapped[list[Page]] = relationship(back_populates="book", cascade="all, delete-orphan", order_by="Page.page_number")
     memory: Mapped[BookMemory | None] = relationship(back_populates="book", cascade="all, delete-orphan", uselist=False)
 
@@ -54,12 +115,52 @@ class Page(Base):
     generated_text: Mapped[str | None] = mapped_column(Text, nullable=True)
     final_text: Mapped[str | None] = mapped_column(Text, nullable=True)
     layout_json: Mapped[dict] = mapped_column(JSON, default=dict)
+    generation_metadata: Mapped[dict] = mapped_column(JSON, default=dict)
     status: Mapped[str] = mapped_column(String(40), default="draft")
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utc_now)
     updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utc_now, onupdate=utc_now)
 
     book: Mapped[Book] = relationship(back_populates="pages")
     images: Mapped[list[PageImage]] = relationship(back_populates="page", cascade="all, delete-orphan")
+
+
+class SourceAsset(Base):
+    __tablename__ = "source_assets"
+
+    id: Mapped[str] = mapped_column(String(80), primary_key=True, default=lambda: new_id("src"))
+    project_id: Mapped[str] = mapped_column(ForeignKey("projects.id", ondelete="CASCADE"), index=True)
+    title: Mapped[str] = mapped_column(String(255), default="Untitled source")
+    original_filename: Mapped[str | None] = mapped_column(String(255), nullable=True)
+    stored_filename: Mapped[str | None] = mapped_column(String(255), nullable=True)
+    content_type: Mapped[str | None] = mapped_column(String(120), nullable=True)
+    source_type: Mapped[str] = mapped_column(String(80), default="other")
+    extracted_text: Mapped[str | None] = mapped_column(Text, nullable=True)
+    summary: Mapped[str | None] = mapped_column(Text, nullable=True)
+    tags: Mapped[list] = mapped_column(JSON, default=list)
+    asset_metadata: Mapped[dict] = mapped_column(JSON, default=dict)
+    status: Mapped[str] = mapped_column(String(40), default="uploaded")
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utc_now)
+    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utc_now, onupdate=utc_now)
+
+    project: Mapped[Project] = relationship(back_populates="source_assets")
+    chunks: Mapped[list[SourceChunk]] = relationship(back_populates="source_asset", cascade="all, delete-orphan")
+
+
+class SourceChunk(Base):
+    __tablename__ = "source_chunks"
+    __table_args__ = (UniqueConstraint("source_asset_id", "chunk_index", name="uq_asset_chunk_index"),)
+
+    id: Mapped[str] = mapped_column(String(80), primary_key=True, default=lambda: new_id("chunk"))
+    source_asset_id: Mapped[str] = mapped_column(ForeignKey("source_assets.id", ondelete="CASCADE"), index=True)
+    project_id: Mapped[str] = mapped_column(ForeignKey("projects.id", ondelete="CASCADE"), index=True)
+    chunk_index: Mapped[int] = mapped_column(Integer)
+    text: Mapped[str] = mapped_column(Text)
+    summary: Mapped[str | None] = mapped_column(Text, nullable=True)
+    token_estimate: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    metadata_json: Mapped[dict] = mapped_column("metadata", JSON, default=dict)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utc_now)
+
+    source_asset: Mapped[SourceAsset] = relationship(back_populates="chunks")
 
 
 class PageImage(Base):

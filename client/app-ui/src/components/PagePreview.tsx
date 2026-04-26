@@ -1,5 +1,6 @@
 import { resolveUploadUrl } from '../api'
 import type { Book, Page } from '../types'
+import { estimatePageCapacity } from '../utils/pageCapacity'
 
 function InternalImagePlaceholder({ layoutId }: { layoutId: string }) {
   return (
@@ -20,6 +21,10 @@ export function PagePreview({ book, page }: { book: Book; page: Page | null }) {
   const image = page?.images?.[0]
   const text = page?.final_text || page?.generated_text || page?.user_text || 'Your next page will appear here as soon as you start shaping it.'
   const showImageArea = composition !== 'text_only'
+  const capacity = estimatePageCapacity(book, page)
+  const words = text.trim().split(/\s+/)
+  const truncated = words.length > capacity.estimated_words
+  const visibleText = truncated ? `${words.slice(0, capacity.estimated_words).join(' ')}…` : text
 
   return (
     <div className={`page-preview page-preview--${layoutId} page-preview--${composition}`}>
@@ -30,7 +35,15 @@ export function PagePreview({ book, page }: { book: Book; page: Page | null }) {
       <div className="page-preview__body">
         {layoutId === 'modern-editorial' ? <div className="page-preview__headline">Designed with editorial hierarchy in mind</div> : null}
         {layoutId === 'classic-novel' ? <div className="page-preview__chapter-label">Chapter draft</div> : null}
-        <article>{text}</article>
+        <div className="page-content-frame">
+          <article className="page-text-flow">{visibleText}</article>
+          {truncated ? (
+            <>
+              <div className="page-overflow-fade" />
+              <p className="continues-marker">Continues on next page</p>
+            </>
+          ) : null}
+        </div>
         {layoutId === 'modern-editorial' ? <aside className="page-preview__callout">Pull quote / callout space</aside> : null}
       </div>
     </div>

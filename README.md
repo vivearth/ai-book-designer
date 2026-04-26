@@ -1,118 +1,81 @@
-# AI Book Designer POC
+# AI Book Designer — Professional Content Studio
 
-A rapid-development proof of concept for a web application that helps users design long-form books page by page. The product captures raw text and images, maintains structured book memory, generates coherent page content, suggests layout metadata, and exports a simple PDF.
+This project evolves the original AI-assisted book designer POC into a **professional content-to-book studio** for marketing, finance, and advisory workflows.
 
-## Repository layout
+## Core workflow
 
-```text
-book_designer_poc/
-├── client/
-│   └── app-ui/              # React + Vite UI
-├── server/
-│   └── app/                 # FastAPI backend
-│       ├── api/             # HTTP routes
-│       ├── core/            # config + database
-│       ├── engines/         # context, memory, LLM, layout, PDF engines
-│       ├── models/          # SQLAlchemy models + Pydantic schemas
-│       └── services/        # orchestration services
-└── docker-compose.yaml
-```
+1. Create a professional project.
+2. Upload/paste source content (notes, markdown, PDFs, images).
+3. Process sources into chunks.
+4. Generate source-grounded pages with professional writing skills.
+5. Review quality flags and used source references.
+6. Preview and export a polished PDF draft.
 
-## What this POC demonstrates
+## Architecture (current)
 
-- Create a book with title, genre, tone, audience, and style guide.
-- Add pages one by one with raw user input.
-- Upload images against a page.
-- Generate page content using a controlled context packet.
-- Maintain book-level memory: summary, characters, locations, timeline, rules, and unresolved threads.
-- Generate layout JSON for each page.
-- Export approved/generated pages to PDF.
+- **Project**: objective, audience, domain direction.
+- **BrandProfile**: tone/rules for writing behavior.
+- **FormatProfile**: reusable layout and export defaults.
+- **Source Library**: `SourceAsset` + `SourceChunk`.
+- **Skills**:
+  - `marketing_book_page`
+  - `finance_book_page`
+  - `layout_composition`
+  - `content_quality`
+- **Book/Page** generation with project + source context.
 
-## Quick start
+## Run
+
+### Docker
 
 ```bash
-cp .env.example .env
-docker compose up --build
+docker compose build
+docker compose up
 ```
 
-Open the app:
-
-```text
-http://localhost:8080
-```
-
-Backend health:
-
-```text
-http://localhost:8000/health
-```
-
-## Optional local LLM with Ollama
-
-By default, the POC runs with `MODEL_PROVIDER=mock`, so the product works without downloading any model.
-
-To run with Ollama:
+### Frontend build
 
 ```bash
-docker compose --profile llm up --build
+cd client/app-ui
+npm install
+npm run build
 ```
 
-Then pull a model inside the Ollama container:
+### Backend tests
 
 ```bash
-docker exec -it book_designer_ollama ollama pull qwen3:8b
+pip install -r server/requirements.txt
+PYTHONPATH=server pytest server/tests -q
 ```
 
-Update `.env`:
+## Skills model
 
-```text
-MODEL_PROVIDER=ollama
-OLLAMA_MODEL=qwen3:8b
-```
+A **Skill** is a reusable capability. Output varies by project context (sources, direction, brand profile, format profile), not by one-off UI prompt hacks.
 
-Restart:
+## Known limitations
 
-```bash
-docker compose --profile llm up --build
-```
+- No auth/RBAC yet.
+- No full audit/replay yet.
+- Source retrieval is keyword-based (embeddings can be added later).
+- PDF export is still a professional demo level.
+- Image understanding is metadata-only (no OCR/vision analysis by default).
 
-## Backend concept
+## Unified Book Studio flow
 
-The backend does not send all 500 pages to the model. Instead, it builds a compact context packet using:
+- Landing offers one path: continue an existing book or start a new book.
+- New book uses a wizard:
+  1. select book type
+  2. choose classical/expert mode
+  3. enter book details
+  4. choose format
+  5. expert mode: source setup + draft generation
 
-1. Book memory
-2. Chapter/current page state
-3. Recent pages
-4. Relevant user input
-5. Layout constraints
+### Manual verification checklist
 
-The core generation flow is:
-
-```text
-User page input
-→ store raw input
-→ build context packet
-→ generate page text
-→ validate/update book memory
-→ generate layout JSON
-→ store result
-→ export PDF when needed
-```
-
-## Important POC limitations
-
-- PDF layout is intentionally simple and uses ReportLab.
-- Memory extraction is heuristic in mock mode and LLM-assisted in Ollama mode.
-- Image understanding is placeholder-based. The backend stores images and captions but does not yet run vision models.
-- No authentication is included.
-- No background queue is included yet; generation happens inside API calls.
-
-## Suggested next steps
-
-1. Add user accounts and book ownership.
-2. Add chapter entities instead of deriving chapter by page number.
-3. Add pgvector for semantic retrieval from older pages.
-4. Add background jobs for generation and PDF export.
-5. Add richer page layout templates.
-6. Add image captioning with a local vision model or multimodal provider.
-7. Add continuity validation as a separate review step before approval.
+- Expert mode creates a project first, then creates the book under that project.
+- Expert source setup appears before workspace.
+- Source upload and processing works from Source Library pane.
+- Draft generation creates multiple pages for empty books (1..N).
+- Cover button shows cover even when pages exist.
+- Next page creates and selects page 2/page 3 correctly.
+- User-selected format is preserved and not overwritten at submit time.
