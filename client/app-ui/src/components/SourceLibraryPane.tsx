@@ -1,6 +1,9 @@
 import { useState } from 'react'
 import { api } from '../api'
 import type { SourceAsset } from '../types'
+import { Button } from './ui/Button'
+import { Card } from './ui/Card'
+import { TextAreaField, TextField } from './ui/FormField'
 
 export function SourceLibraryPane({ projectId, sources, onRefresh, selected, setSelected }: {
   projectId: string
@@ -10,38 +13,48 @@ export function SourceLibraryPane({ projectId, sources, onRefresh, selected, set
   setSelected: (ids: string[]) => void
 }) {
   const [text, setText] = useState('')
+  const [title, setTitle] = useState('')
 
   async function uploadFiles(files: FileList | null) {
     if (!files) return
-    for (const file of Array.from(files)) {
-      await api.uploadSource(projectId, file, { source_type: 'other' })
-    }
+    for (const file of Array.from(files)) await api.uploadSource(projectId, file, { source_type: 'other' })
     await onRefresh()
   }
 
   return (
-    <section className="panel">
-      <h3>Source Library</h3>
-      <input type="file" multiple onChange={(e) => void uploadFiles(e.target.files)} />
-      <textarea value={text} onChange={(e) => setText(e.target.value)} placeholder="Paste campaign notes, insights, reports..." rows={5} />
-      <div className="row-gap">
-        <button onClick={async () => { if (!text.trim()) return; await api.createTextSource(projectId, { text, title: 'Pasted source', source_type: 'note' }); setText(''); await onRefresh() }}>Add text source</button>
-        <button onClick={async () => { for (const s of sources.filter((x) => x.status !== 'processed')) await api.processSource(s.id); await onRefresh() }}>Process all</button>
-        <button onClick={() => setSelected(sources.map((s) => s.id))}>Select all</button>
-      </div>
-      <div className="list-col">
+    <div className="source-setup-shell">
+      <Card className="upload-dropzone">
+        <label>
+          <strong>Upload source files</strong>
+          <p>Drop PDFs, markdown, text, images, and notes.</p>
+          <input type="file" multiple onChange={(e) => void uploadFiles(e.target.files)} />
+        </label>
+      </Card>
+
+      <Card>
+        <TextField label="Source title (optional)" value={title} onChange={(e) => setTitle(e.target.value)} placeholder="Campaign notes / advisory memo" />
+        <TextAreaField label="Paste source text" value={text} onChange={(e) => setText(e.target.value)} rows={4} placeholder="Paste long notes or draft material here…" />
+        <div className="row-gap">
+          <Button onClick={async () => { if (!text.trim()) return; await api.createTextSource(projectId, { text, title: title || 'Pasted source', source_type: 'note' }); setText(''); setTitle(''); await onRefresh() }}>Add source</Button>
+          <Button variant="secondary" onClick={async () => { for (const s of sources.filter((x) => x.status !== 'processed')) await api.processSource(s.id); await onRefresh() }}>Process all</Button>
+          <Button variant="ghost" onClick={() => setSelected(sources.map((s) => s.id))}>Select all</Button>
+        </div>
+      </Card>
+
+      <div className="source-list-grid">
+        {sources.length === 0 ? <Card><p className="muted">No sources yet. Upload files or paste source text to generate a stronger draft.</p></Card> : null}
         {sources.map((source) => (
-          <label key={source.id} className="source-card">
-            <input type="checkbox" checked={selected.includes(source.id)} onChange={(e) => setSelected(e.target.checked ? [...selected, source.id] : selected.filter((id) => id !== source.id))} />
-            <div>
-              <strong>{source.title}</strong>
-              <div>{source.source_type} · {source.status}</div>
-              {source.summary ? <small>{source.summary.slice(0, 110)}...</small> : null}
+          <Card key={source.id} className={`source-item ${selected.includes(source.id) ? 'is-selected' : ''}`}>
+            <div className="source-item-head">
+              <label><input type="checkbox" checked={selected.includes(source.id)} onChange={(e) => setSelected(e.target.checked ? [...selected, source.id] : selected.filter((id) => id !== source.id))} /> <strong>{source.title}</strong></label>
+              <span className="chip muted">{source.status}</span>
             </div>
-            <button type="button" onClick={async () => { await api.processSource(source.id); await onRefresh() }}>Process</button>
-          </label>
+            <small>{source.source_type}</small>
+            {source.summary ? <p>{source.summary.slice(0, 130)}…</p> : <p className="muted">No summary yet.</p>}
+            <Button size="sm" variant="secondary" onClick={async () => { await api.processSource(source.id); await onRefresh() }}>Process</Button>
+          </Card>
         ))}
       </div>
-    </section>
+    </div>
   )
 }
