@@ -131,7 +131,7 @@ class BookRead(BaseModel):
 
 class GenerationRequest(BaseModel):
     instruction: str | None = None
-    target_words: int = 350
+    target_words: int | None = None
     allow_new_characters: bool = False
 
 

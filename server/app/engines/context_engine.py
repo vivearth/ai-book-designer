@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import json
 from typing import Any
 
 from sqlalchemy.orm import Session
@@ -17,6 +18,8 @@ class ContextEngine:
         instruction: str | None,
         target_words: int,
         allow_new_characters: bool,
+        composition: str,
+        word_budget_reason: str,
     ) -> dict[str, Any]:
         previous_pages = (
             db.query(Page)
@@ -27,6 +30,7 @@ class ContextEngine:
         )
         previous_pages = list(reversed(previous_pages))
         memory = book.memory
+        format_settings = book.format_settings or {}
 
         return {
             "book": {
@@ -38,6 +42,7 @@ class ContextEngine:
                 "target_audience": book.target_audience,
                 "writing_style": book.writing_style,
                 "layout_template": book.layout_template,
+                "format_settings": format_settings,
             },
             "memory": {
                 "global_summary": memory.global_summary if memory else "",
@@ -72,31 +77,66 @@ class ContextEngine:
                 "instruction": instruction,
                 "target_words": target_words,
                 "allow_new_characters": allow_new_characters,
+                "composition": composition,
+                "selected_layout": format_settings.get("selected_layout_id") or book.layout_template,
+                "image_count": len(page.images),
+                "word_budget_reason": word_budget_reason,
             },
         }
 
     def to_generation_prompt(self, packet: dict[str, Any]) -> str:
-        return f"""
-SYSTEM:
-You are an AI book design assistant. Generate one polished book page from the user's rough page input.
-Preserve continuity. Do not contradict the book memory. Do not freely change the genre or tone.
-If information is insufficient, infer conservatively from the existing context.
+        book = packet["book"]
+        memory = packet["memory"]
+        current_page = packet["current_page"]
+        constraints = packet["generation_constraints"]
 
-BOOK PROFILE:
-{packet["book"]}
+        genre = (book.get("genre") or "").strip().lower()
+        if genre == "finance":
+            genre_instruction = "Write clear finance-focused non-fiction prose with concrete business or investing context, credible terminology, and practical examples unless the page explicitly asks for fiction."
+        elif genre == "marketing":
+            genre_instruction = "Write marketing-focused non-fiction prose with positioning, audience, campaigns, customer understanding, or go-to-market framing unless the page explicitly asks for fiction."
+        elif "fiction" in genre or genre in {"memoir", "children's book", "children’s book", "poetry"}:
+            genre_instruction = "Write as book prose appropriate to the genre, staying narrative, immersive, and readable."
+        else:
+            genre_instruction = "Write structured, readable non-fiction prose suited to a professionally written book page."
 
-BOOK MEMORY:
-{packet["memory"]}
-
-RECENT CONTEXT:
-{packet["recent_pages"]}
-
-USER CURRENT PAGE INPUT:
-{packet["current_page"]}
-
-CONSTRAINTS:
-{packet["generation_constraints"]}
-
-TASK:
-Return only the page text. Keep it suitable for a formatted book page.
-""".strip()
+        prompt_sections = [
+            "You are writing one page of a book.",
+            "Return only the finished book page prose.",
+            "Do not mention the prompt, constraints, labels, system text, or analysis.",
+            "Do not output JSON, bullet analysis, metadata, or section labels unless the page itself naturally needs them.",
+            genre_instruction,
+            f"Book title: {book.get('title') or 'Untitled'}",
+            f"Book topic: {book.get('topic') or 'N/A'}",
+            f"Genre or content direction: {book.get('genre') or 'N/A'}",
+            f"Tone: {book.get('tone') or 'N/A'}",
+            f"Writing style: {book.get('writing_style') or 'N/A'}",
+            f"Selected layout: {constraints.get('selected_layout')}",
+            f"Page composition: {constraints.get('composition')}",
+            f"Target word count: about {constraints.get('target_words')} words",
+            f"Word budget reason: {constraints.get('word_budget_reason')}",
+            f"Allow new characters: {'yes' if constraints.get('allow_new_characters') else 'no'}",
+            f"Instruction for this page: {constraints.get('instruction') or 'Polish the page and keep continuity.'}",
+            "Book memory summary:",
+            memory.get("global_summary") or "No summary yet.",
+            "Known characters:",
+            json.dumps(memory.get("characters") or [], ensure_ascii=False),
+            "Known locations:",
+            json.dumps(memory.get("locations") or [], ensure_ascii=False),
+            "Timeline notes:",
+            json.dumps(memory.get("timeline") or [], ensure_ascii=False),
+            "Unresolved threads:",
+            json.dumps(memory.get("unresolved_threads") or [], ensure_ascii=False),
+            "Recent pages:",
+            json.dumps(packet.get("recent_pages") or [], ensure_ascii=False, indent=2),
+            "Current page input:",
+            f"Page number: {current_page.get('page_number')}",
+            f"Page direction: {current_page.get('user_prompt') or 'N/A'}",
+            f"Rough text: {current_page.get('user_text') or 'N/A'}",
+            f"Images attached: {len(current_page.get('images') or [])}",
+            "Output rules:",
+            "Return only the page itself as reader-facing prose.",
+            "Do not write headings like BOOK PROFILE, CONSTRAINTS, TASK, or Draft page content.",
+            "Do not explain what you are doing.",
+        ]
+        return "\n\n".join(prompt_sections)

@@ -4,7 +4,6 @@ import { PagePreview } from './PagePreview'
 
 export function BookPreviewPane({ book, pages, activePageId, onSelectPage }: { book: Book; pages: Page[]; activePageId: string | null; onSelectPage: (pageId: string | null) => void }) {
   const activePage = pages.find((page) => page.id === activePageId) ?? pages[0] ?? null
-  const previewMode = activePage?.images?.length ? 'text-with-image' : 'text-only'
 
   return (
     <section className="preview-pane">
@@ -25,7 +24,7 @@ export function BookPreviewPane({ book, pages, activePageId, onSelectPage }: { b
       <div className="book-stage">
         <div className="book-stage__shadow" />
         <div className="book-sheet">
-          {activePage ? <PagePreview page={activePage} mode={previewMode} /> : <BookCover book={book} />}
+          {activePage ? <PagePreview book={book} page={activePage} /> : <BookCover book={book} />}
         </div>
       </div>
     </section>

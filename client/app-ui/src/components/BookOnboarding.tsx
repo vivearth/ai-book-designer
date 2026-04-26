@@ -32,8 +32,8 @@ export function BookOnboarding({ onCreated }: { onCreated: (book: Book) => void 
         title: title.trim() || 'Untitled',
         topic,
         genre: resolvedGenre,
-        writing_style: 'Warm, literary, page-aware storytelling',
-        tone: 'Warm editorial',
+        writing_style: resolvedGenre === 'Finance' || resolvedGenre === 'Marketing' ? 'Clear, domain-aware non-fiction with real-world examples' : 'Warm, literary, page-aware storytelling',
+        tone: resolvedGenre === 'Finance' || resolvedGenre === 'Marketing' ? 'Confident, useful, precise' : 'Warm editorial',
         page_size: formatSettings.page_size,
         layout_template: formatSettings.selected_layout_id,
         format_settings: formatSettings,
@@ -78,16 +78,16 @@ export function BookOnboarding({ onCreated }: { onCreated: (book: Book) => void 
         </article>
 
         <article className="onboarding-card">
-          <h3>Genre</h3>
-          <p>Optional. You can refine this later.</p>
+          <h3>Genre or content direction</h3>
+          <p>Choose the closest direction. For finance or marketing books, this helps the assistant avoid random storytelling and keep examples, tone, and structure domain-aware.</p>
           <div className="genre-options">
-            {['Fiction', 'Non-fiction', 'Children\'s book', 'Memoir', 'Poetry', 'Custom'].map((option) => (
+            {['Fiction', 'Non-fiction', 'Children\'s book', 'Memoir', 'Poetry', 'Finance', 'Marketing', 'Custom'].map((option) => (
               <button key={option} type="button" className={`genre-pill ${genre === option ? 'is-active' : ''}`} onClick={() => setGenre(option)}>
                 {option}
               </button>
             ))}
           </div>
-          {genre === 'Custom' ? <input value={customGenre} onChange={(event) => setCustomGenre(event.target.value)} placeholder="Custom genre" /> : null}
+          {genre === 'Custom' ? <input value={customGenre} onChange={(event) => setCustomGenre(event.target.value)} placeholder="Custom direction" /> : null}
         </article>
 
         <article className="onboarding-card">
@@ -117,7 +117,7 @@ export function BookOnboarding({ onCreated }: { onCreated: (book: Book) => void 
               <h4>{formatSettings.layout_name}</h4>
               <p>See how this format behaves before you commit.</p>
             </div>
-            <FormatPreviewStrip scenarios={formatSettings.preview_scenarios} />
+            <FormatPreviewStrip formatSettings={formatSettings} />
             <div className="format-review__actions">
               <button type="button" onClick={createBook} disabled={busy}>Use this format</button>
               <button type="button" className="ghost-button" onClick={() => setReviewingFormat(false)}>Change format</button>

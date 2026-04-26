@@ -89,7 +89,6 @@ export function BookWorkspace({
       }
       const result: GenerationResponse = await api.generatePage(page.id, {
         instruction: draft.instruction,
-        target_words: 320,
         allow_new_characters: false,
       })
       setContextPacket(result.context_packet)

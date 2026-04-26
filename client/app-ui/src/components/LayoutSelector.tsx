@@ -1,5 +1,61 @@
 import type { FormatSettings } from '../types'
 
+function LayoutMiniature({ layoutId }: { layoutId: FormatSettings['selected_layout_id'] }) {
+  if (layoutId === 'illustrated-story') {
+    return (
+      <div className="layout-miniature layout-miniature--illustrated-story">
+        <div className="layout-miniature__artboard">
+          <div className="art-scene art-scene--sun" />
+          <div className="art-scene art-scene--hill art-scene--hill-back" />
+          <div className="art-scene art-scene--hill art-scene--hill-front" />
+          <div className="art-scene art-scene--tree" />
+          <div className="art-scene art-scene--character" />
+        </div>
+        <div className="layout-miniature__caption-lines">
+          <span />
+          <span />
+        </div>
+      </div>
+    )
+  }
+
+  if (layoutId === 'modern-editorial') {
+    return (
+      <div className="layout-miniature layout-miniature--modern-editorial">
+        <div className="layout-miniature__header-strip" />
+        <div className="layout-miniature__editorial-grid">
+          <div className="layout-miniature__column-lines">
+            <span />
+            <span />
+            <span />
+            <span />
+          </div>
+          <div className="layout-miniature__side-card">
+            <div className="layout-miniature__quote-chip" />
+            <div className="layout-miniature__chart-bars">
+              <span />
+              <span />
+              <span />
+            </div>
+          </div>
+        </div>
+      </div>
+    )
+  }
+
+  return (
+    <div className="layout-miniature layout-miniature--classic-novel">
+      <div className="layout-miniature__chapter-kicker" />
+      <div className="layout-miniature__chapter-title" />
+      <div className="layout-miniature__ornament" />
+      <div className="layout-miniature__prose-lines">
+        {Array.from({ length: 6 }).map((_, index) => <span key={index} />)}
+      </div>
+      <div className="layout-miniature__page-number" />
+    </div>
+  )
+}
+
 const LAYOUTS: FormatSettings[] = [
   {
     selected_layout_id: 'classic-novel',
@@ -51,16 +107,12 @@ export function LayoutSelector({ selected, onSelect }: { selected: FormatSetting
           <button
             key={layout.selected_layout_id}
             type="button"
-            className={`layout-card ${active ? 'is-active' : ''}`}
+            className={`layout-card layout-card--${layout.selected_layout_id} ${active ? 'is-active' : ''}`}
             onClick={() => onSelect(layout)}
           >
             <div className="layout-card__shine" />
             <div className="layout-card__mini-preview">
-              <div className={`mini-page mini-page--${layout.selected_layout_id}`}>
-                <span />
-                <span />
-                <span />
-              </div>
+              <LayoutMiniature layoutId={layout.selected_layout_id} />
             </div>
             <div>
               <strong>{layout.layout_name}</strong>

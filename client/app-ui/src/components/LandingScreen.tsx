@@ -4,6 +4,8 @@ import { ProjectSwitcher } from './ProjectSwitcher'
 export function LandingScreen({ books, onContinue, onStartNew, revealProjects, setRevealProjects }: { books: Book[]; onContinue: (book: Book) => void; onStartNew: () => void; revealProjects: boolean; setRevealProjects: (value: boolean) => void }) {
   return (
     <section className="landing-shell">
+      <div className="landing-ambient-grid" />
+      <div className="landing-ambient-glow" />
       <div className="landing-copy">
         <p className="kicker">AI-assisted book design studio</p>
         <h1>Design your book before you write all of it.</h1>
@@ -14,20 +16,27 @@ export function LandingScreen({ books, onContinue, onStartNew, revealProjects, s
           <button type="button" className="ghost-button" onClick={() => setRevealProjects(true)}>
             Continue working on your books
           </button>
-          <button type="button" onClick={onStartNew}>Write a new book</button>
+          <button type="button" className="premium-button" onClick={onStartNew}>Write a new book</button>
         </div>
         {revealProjects ? (
           books.length ? (
-            <ProjectSwitcher books={books} onSelect={onContinue} />
+            <div className="studio-shelf">
+              <ProjectSwitcher books={books} onSelect={onContinue} />
+            </div>
           ) : (
             <p className="empty-note">No saved books yet. Start a new one and your studio shelf will fill up.</p>
           )
         ) : null}
       </div>
       <div className="landing-visual">
+        <div className="hero-annotation hero-annotation--format">Format</div>
+        <div className="hero-annotation hero-annotation--memory">Memory</div>
+        <div className="hero-annotation hero-annotation--preview">Preview</div>
         <div className="book-stack">
           <article className="stacked-book stacked-book--front">
             <div className="stacked-book__spine" />
+            <div className="stacked-book__scan-line" />
+            <div className="stacked-book__guide-lines" />
             <div className="stacked-book__page">
               <small>Your book will appear here</small>
               <h3>Page by page, with a live preview.</h3>

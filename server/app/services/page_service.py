@@ -64,22 +64,32 @@ class PageService:
         book = page.book
         self.memory_engine.ensure_memory(db, book)
 
+        draft_layout = self.layout_engine.build_layout(book=book, page=page)
+        composition = draft_layout.get("composition", "text_only")
+        computed_target_words, word_budget_reason = self.layout_engine.estimate_target_words(book=book, page=page, composition=composition)
+        target_words = request.target_words if request.target_words is not None else computed_target_words
+        if request.target_words is not None:
+            target_words = max(40, min(520, request.target_words))
+
         packet = self.context_engine.build_context_packet(
             db,
             book=book,
             page=page,
             instruction=request.instruction,
-            target_words=request.target_words,
+            target_words=target_words,
             allow_new_characters=request.allow_new_characters,
+            composition=composition,
+            word_budget_reason=word_budget_reason,
         )
         prompt = self.context_engine.to_generation_prompt(packet)
-        generated = await self.llm_engine.generate_text(prompt)
+        generated, provider_notes = await self.llm_engine.generate_text(prompt)
 
         page.generated_text = generated
         page.status = "generated"
         page.layout_json = self.layout_engine.build_layout(book=book, page=page)
         self.memory_engine.update_after_page(db, book=book, page=page)
         notes = self._continuity_notes(book, page)
+        notes.extend(provider_notes)
         db.commit()
         db.refresh(page)
         return page, packet, notes
