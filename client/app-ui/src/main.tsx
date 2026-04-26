@@ -2,113 +2,53 @@ import React, { useEffect, useState } from 'react'
 import { createRoot } from 'react-dom/client'
 import { api } from './api'
 import './styles.css'
-import type { Book, Page } from './types'
+import type { Book, Project } from './types'
+import { LandingScreen } from './components/LandingScreen'
 import { BookOnboarding } from './components/BookOnboarding'
 import { BookWorkspace } from './components/BookWorkspace'
-import { LandingScreen } from './components/LandingScreen'
+import { ProjectOnboarding } from './components/ProjectOnboarding'
+import { ProfessionalWorkspace } from './components/ProfessionalWorkspace'
 
-type UIMode = 'landing' | 'selecting-existing-book' | 'onboarding' | 'workspace'
+type UIMode = 'landing' | 'onboarding' | 'workspace' | 'project-onboarding' | 'project-workspace'
 
 function App() {
   const [mode, setMode] = useState<UIMode>('landing')
   const [books, setBooks] = useState<Book[]>([])
   const [selectedBook, setSelectedBook] = useState<Book | null>(null)
-  const [pages, setPages] = useState<Page[]>([])
-  const [busy, setBusy] = useState(false)
-  const [error, setError] = useState<string | null>(null)
-  const [revealProjects, setRevealProjects] = useState(false)
+  const [pages, setPages] = useState<any[]>([])
+  const [selectedProject, setSelectedProject] = useState<Project | null>(null)
+  const [projects, setProjects] = useState<Project[]>([])
 
-  async function guarded(action: () => Promise<void>) {
-    setBusy(true)
-    setError(null)
-    try {
-      await action()
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Something went wrong')
-    } finally {
-      setBusy(false)
-    }
+  async function refreshBase() {
+    setBooks(await api.listBooks())
+    setProjects(await api.listProjects())
   }
 
-  async function loadBooks() {
-    const result = await api.listBooks()
-    setBooks(result)
-    if (selectedBook) {
-      const fresh = result.find((book) => book.id === selectedBook.id) || null
-      setSelectedBook(fresh)
-    }
-  }
-
-  async function loadPages(bookId: string) {
-    const result = await api.listPages(bookId)
-    setPages(result)
-  }
-
-  useEffect(() => {
-    guarded(loadBooks)
-  }, [])
-
-  async function openWorkspace(book: Book) {
-    await guarded(async () => {
-      setSelectedBook(book)
-      await loadPages(book.id)
-      setMode('workspace')
-    })
-  }
-
-  async function refreshSelectedBook() {
-    if (!selectedBook) return
-    const fresh = await api.getBook(selectedBook.id)
-    setSelectedBook(fresh)
-    await loadBooks()
-  }
-
-  async function refreshPages() {
-    if (!selectedBook) return
-    await loadPages(selectedBook.id)
-  }
+  useEffect(() => { void refreshBase() }, [])
 
   return (
     <main className="app-shell">
-      {error ? <div className="error-banner global-error">{error}</div> : null}
-      {busy && mode === 'landing' ? <div className="notice-pill">Loading your studio…</div> : null}
-
-      {mode === 'landing' || mode === 'selecting-existing-book' ? (
-        <LandingScreen
-          books={books}
-          onContinue={(book) => {
-            setMode('selecting-existing-book')
-            void openWorkspace(book)
-          }}
-          onStartNew={() => setMode('onboarding')}
-          revealProjects={revealProjects}
-          setRevealProjects={(value) => {
-            setRevealProjects(value)
-            setMode(value ? 'selecting-existing-book' : 'landing')
-          }}
-        />
+      {mode === 'landing' ? (
+        <div>
+          <LandingScreen books={books} onContinue={(book) => { setSelectedBook(book); setMode('workspace') }} onStartNew={() => setMode('onboarding')} revealProjects={true} setRevealProjects={() => {}} />
+          <section className="panel">
+            <h2>Professional project studio</h2>
+            <p>Turn curated business content into a polished book. Upload reports, campaign notes, decks, and source material for grounded generation.</p>
+            <button onClick={() => setMode('project-onboarding')}>Start a professional book project</button>
+            <div className="list-col">{projects.map((p) => <button key={p.id} onClick={() => { setSelectedProject(p); setMode('project-workspace') }}>Open: {p.name}</button>)}</div>
+          </section>
+        </div>
       ) : null}
 
-      {mode === 'onboarding' ? <BookOnboarding onCreated={(book) => { void loadBooks(); void openWorkspace(book) }} /> : null}
+      {mode === 'project-onboarding' ? <ProjectOnboarding onCreated={(project) => { setSelectedProject(project); void refreshBase(); setMode('project-workspace') }} /> : null}
+      {mode === 'project-workspace' && selectedProject ? <ProfessionalWorkspace project={selectedProject} onBack={() => setMode('landing')} /> : null}
 
+      {mode === 'onboarding' ? <BookOnboarding onCreated={(book) => { setSelectedBook(book); void refreshBase(); setMode('workspace') }} /> : null}
       {mode === 'workspace' && selectedBook ? (
-        <BookWorkspace
-          book={selectedBook}
-          pages={pages}
-          setPages={setPages}
-          refreshBook={refreshSelectedBook}
-          refreshPages={refreshPages}
-          onBack={() => setMode('landing')}
-          onSelectProject={(book) => void openWorkspace(book)}
-          books={books}
-        />
+        <BookWorkspace book={selectedBook} pages={pages} setPages={setPages} refreshBook={async () => setSelectedBook(await api.getBook(selectedBook.id))} refreshPages={async () => setPages(await api.listPages(selectedBook.id))} onBack={() => setMode('landing')} onSelectProject={(book) => setSelectedBook(book)} books={books} />
       ) : null}
     </main>
   )
 }
 
-createRoot(document.getElementById('root')!).render(
-  <React.StrictMode>
-    <App />
-  </React.StrictMode>,
-)
+createRoot(document.getElementById('root')!).render(<React.StrictMode><App /></React.StrictMode>)

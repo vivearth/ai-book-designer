@@ -22,7 +22,75 @@ class FormatSettings(BaseModel):
     preview_scenarios: list[PreviewScenario] = Field(default_factory=list)
 
 
+class ProjectCreate(BaseModel):
+    name: str
+    description: str | None = None
+    content_direction: str = "Marketing"
+    audience: str | None = None
+    objective: str | None = None
+    status: str = "draft"
+
+
+class ProjectUpdate(BaseModel):
+    name: str | None = None
+    description: str | None = None
+    content_direction: str | None = None
+    audience: str | None = None
+    objective: str | None = None
+    status: str | None = None
+
+
+class BrandProfileRead(BaseModel):
+    id: str
+    project_id: str | None
+    name: str
+    tone: str
+    writing_rules: list[Any]
+    approved_terms: list[Any]
+    banned_terms: list[Any]
+    formatting_notes: dict[str, Any]
+    disclaimer_notes: str | None
+    created_at: datetime
+    updated_at: datetime
+
+    model_config = {"from_attributes": True}
+
+
+class FormatProfileRead(BaseModel):
+    id: str
+    project_id: str | None
+    name: str
+    layout_id: str
+    page_size: str
+    typography: dict[str, Any]
+    margins: dict[str, Any]
+    component_rules: dict[str, Any]
+    image_policy: dict[str, Any]
+    export_rules: dict[str, Any]
+    created_at: datetime
+    updated_at: datetime
+
+    model_config = {"from_attributes": True}
+
+
+class ProjectRead(BaseModel):
+    id: str
+    name: str
+    description: str | None
+    content_direction: str
+    audience: str | None
+    objective: str | None
+    status: str
+    created_at: datetime
+    updated_at: datetime
+    brand_profiles: list[BrandProfileRead] = []
+    format_profiles: list[FormatProfileRead] = []
+
+    model_config = {"from_attributes": True}
+
+
 class BookCreate(BaseModel):
+    project_id: str | None = None
     title: str | None = Field(default="Untitled")
     topic: str | None = None
     genre: str | None = None
@@ -35,6 +103,7 @@ class BookCreate(BaseModel):
 
 
 class BookUpdate(BaseModel):
+    project_id: str | None = None
     title: str | None = None
     topic: str | None = None
     genre: str | None = None
@@ -74,6 +143,7 @@ class PageUpdate(BaseModel):
     generated_text: str | None = None
     final_text: str | None = None
     layout_json: dict[str, Any] | None = None
+    generation_metadata: dict[str, Any] | None = None
     status: str | None = None
 
 
@@ -86,6 +156,7 @@ class PageRead(BaseModel):
     generated_text: str | None
     final_text: str | None
     layout_json: dict[str, Any]
+    generation_metadata: dict[str, Any]
     status: str
     created_at: datetime
     updated_at: datetime
@@ -108,6 +179,7 @@ class BookMemoryRead(BaseModel):
 
 class BookRead(BaseModel):
     id: str
+    project_id: str | None
     title: str
     topic: str | None
     genre: str | None
@@ -129,16 +201,66 @@ class BookRead(BaseModel):
     model_config = {"from_attributes": True}
 
 
+class SourceAssetRead(BaseModel):
+    id: str
+    project_id: str
+    title: str
+    original_filename: str | None
+    stored_filename: str | None
+    content_type: str | None
+    source_type: str
+    extracted_text: str | None
+    summary: str | None
+    tags: list[Any]
+    asset_metadata: dict[str, Any]
+    status: str
+    created_at: datetime
+    updated_at: datetime
+
+    model_config = {"from_attributes": True}
+
+
+class SourceChunkRead(BaseModel):
+    id: str
+    source_asset_id: str
+    project_id: str
+    chunk_index: int
+    text: str
+    summary: str | None
+    token_estimate: int | None
+    metadata_json: dict[str, Any]
+    created_at: datetime
+
+    model_config = {"from_attributes": True}
+
+
+class SourceTextCreate(BaseModel):
+    title: str | None = None
+    text: str
+    source_type: str = "note"
+    tags: list[str] = Field(default_factory=list)
+
+
 class GenerationRequest(BaseModel):
     instruction: str | None = None
     target_words: int | None = None
     allow_new_characters: bool = False
+    skill_id: str | None = None
+    selected_source_asset_ids: list[str] = Field(default_factory=list)
+    selected_source_chunk_ids: list[str] = Field(default_factory=list)
+    auto_retrieve_sources: bool = True
+    content_mode: str | None = None
+    quality_threshold: int = 70
 
 
 class GenerationResponse(BaseModel):
     page: PageRead
     context_packet: dict[str, Any]
     continuity_notes: list[str]
+    skill_output: dict[str, Any] | None = None
+    source_refs: list[dict[str, Any]] = Field(default_factory=list)
+    quality_report: dict[str, Any] | None = None
+    warnings: list[str] = Field(default_factory=list)
 
 
 class PdfExportResponse(BaseModel):
