@@ -8,6 +8,24 @@ export type BookMemory = {
   style_guide: Record<string, unknown>
 }
 
+export type PreviewScenario = {
+  id: 'image-only' | 'text-with-image' | 'text-only'
+  title: string
+  description: string
+}
+
+export type FormatSettings = {
+  selected_layout_id: 'classic-novel' | 'illustrated-story' | 'modern-editorial'
+  layout_name: string
+  page_size: string
+  margin_style: string
+  typography_style: string
+  image_policy: string
+  preview_scenarios: PreviewScenario[]
+}
+
+export type CoverSource = 'uploaded' | 'generated' | 'none'
+
 export type Book = {
   id: string
   title: string
@@ -22,6 +40,11 @@ export type Book = {
   created_at: string
   updated_at: string
   memory?: BookMemory | null
+  format_settings?: FormatSettings | null
+  cover_image_filename?: string | null
+  cover_original_filename?: string | null
+  cover_content_type?: string | null
+  cover_source?: CoverSource | null
 }
 
 export type PageImage = {

@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, File, UploadFile
 from sqlalchemy.orm import Session
 
 from app.core.database import get_db
@@ -31,6 +31,11 @@ def get_book(book_id: str, db: Session = Depends(get_db)):
 @router.patch("/{book_id}", response_model=BookRead)
 def update_book(book_id: str, payload: BookUpdate, db: Session = Depends(get_db)):
     return service.update_book(db, book_id, payload)
+
+
+@router.post("/{book_id}/cover", response_model=BookRead)
+async def upload_book_cover(book_id: str, file: UploadFile = File(...), db: Session = Depends(get_db)):
+    return await service.upload_cover(db, book_id, file)
 
 
 @router.post("/{book_id}/export/pdf", response_model=PdfExportResponse)

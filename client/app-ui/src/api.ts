@@ -16,8 +16,14 @@ async function request<T>(path: string, options?: RequestInit): Promise<T> {
 
 export const api = {
   listBooks: () => request<Book[]>('/books'),
+  getBook: (bookId: string) => request<Book>(`/books/${bookId}`),
   createBook: (payload: Partial<Book>) => request<Book>('/books', { method: 'POST', body: JSON.stringify(payload) }),
   updateBook: (bookId: string, payload: Partial<Book>) => request<Book>(`/books/${bookId}`, { method: 'PATCH', body: JSON.stringify(payload) }),
+  uploadCover: (bookId: string, file: File) => {
+    const body = new FormData()
+    body.append('file', file)
+    return request<Book>(`/books/${bookId}/cover`, { method: 'POST', body })
+  },
   listPages: (bookId: string) => request<Page[]>(`/books/${bookId}/pages`),
   createPage: (bookId: string, payload: { page_number: number; user_prompt?: string; user_text?: string }) =>
     request<Page>(`/books/${bookId}/pages`, { method: 'POST', body: JSON.stringify(payload) }),
@@ -34,3 +40,6 @@ export const api = {
   },
   exportPdf: (bookId: string) => request<{ book_id: string; filename: string; download_url: string }>(`/books/${bookId}/export/pdf`, { method: 'POST' }),
 }
+
+export const resolveUploadUrl = (filename: string) => `${API_BASE}/uploads/${filename}`
+export const resolveGeneratedCoverUrl = (bookId: string) => `${API_BASE}/books/${bookId}/cover/generated.svg`
