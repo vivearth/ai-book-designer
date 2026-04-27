@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import re
+
 from fastapi import HTTPException, UploadFile
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
@@ -119,7 +121,7 @@ class PageService:
             {
                 "instruction": request.instruction,
                 "target_words": target_words,
-                "page_direction": page.user_prompt or request.instruction,
+                "page_direction": page.user_prompt or "",
                 "rough_text": page.user_text or "",
             },
             ctx,
@@ -127,6 +129,10 @@ class PageService:
 
         content = skill_result.output
         body = content.get("body_text") or ""
+        if request.instruction and any(token in body.lower() for token in ["shape this into a polished page", "preserving continuity", "return only"]):
+            warnings.append("Guidance leakage was detected in generated content and was cleaned.")
+            for marker in ["Shape this into a polished page", "preserving continuity", "Return only"]:
+                body = re.sub(re.escape(marker), "", body, flags=re.IGNORECASE)
         body, sanitize_notes = self.llm_engine.sanitize_generated_page_text(body)
         deduped_body, repetition_notes = self.text_quality_engine.remove_repeated_sentences(body)
         body = deduped_body or body
@@ -172,7 +178,7 @@ class PageService:
                 "generated_text": current_text,
                 "target_words": target_words,
                 "expected_content_direction": (project.content_direction if project else (book.genre or "")),
-                "user_prompt": page.user_prompt or request.instruction or "",
+                "user_prompt": page.user_prompt or "",
                 "user_text": page.user_text or "",
             },
             ctx,
@@ -188,7 +194,7 @@ class PageService:
                 {
                     "instruction": request.instruction,
                     "target_words": target_words,
-                    "page_direction": page.user_prompt or request.instruction,
+                    "page_direction": page.user_prompt or "",
                     "rough_text": page.user_text or "",
                     "strict_quality": True,
                 },
@@ -203,7 +209,7 @@ class PageService:
                     "generated_text": retry_current_text,
                     "target_words": target_words,
                     "expected_content_direction": (project.content_direction if project else (book.genre or "")),
-                    "user_prompt": page.user_prompt or request.instruction or "",
+                    "user_prompt": page.user_prompt or "",
                     "user_text": page.user_text or "",
                 },
                 ctx,
@@ -227,7 +233,10 @@ class PageService:
             "skill_id": skill_id,
             "source_refs": source_refs,
             "quality_report": quality_report,
+            "headline": content.get("headline"),
+            "pull_quote": content.get("pull_quote"),
             "layout_intent": content.get("layout_intent"),
+            "seed_reason": content.get("seed_reason"),
             "target_words": target_words,
             "page_capacity_hint": request.page_capacity_hint.model_dump() if request.page_capacity_hint else None,
             "word_budget_reason": word_budget_reason,

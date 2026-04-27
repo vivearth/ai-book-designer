@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from app.skills.base import Skill, SkillContext, SkillResult
-from app.skills.writing_flow import maybe_run_two_pass_page_generation
+from app.skills.writing_flow import derive_page_seed, maybe_run_two_pass_page_generation
 
 
 class FictionBookPageSkill(Skill):
@@ -14,8 +14,16 @@ class FictionBookPageSkill(Skill):
         book = context.book
         page = context.page
         target_words = int(input.get("target_words") or 320)
-        page_direction = input.get("page_direction") or input.get("instruction") or "Continue the scene"
-        rough_text = input.get("rough_text") or ""
+        page_direction, rough_text, seed_reason = derive_page_seed(
+            book_title=book.title if book else "",
+            book_topic=book.topic if book else "",
+            book_type=book.book_type_id if book else "fiction",
+            page_number=page.page_number if page else 1,
+            page_direction=input.get("page_direction") or "",
+            rough_notes=input.get("rough_text") or "",
+            audience=(context.project.audience if context.project else ""),
+            objective=(context.project.objective if context.project else ""),
+        )
         memory = (book.memory.global_summary if book and book.memory else "") if book else ""
         recent_pages = []
         if book and getattr(book, "pages", None):
@@ -46,12 +54,13 @@ class FictionBookPageSkill(Skill):
                 "Input direction: A chase through traffic. Rough notes: protagonist runs across wet roads, gunfire behind him, jumps from bridge into river.\n"
                 "Output style: tense prose with roads, horns, gunshots, bridge, water, breath, fear."
             ),
+            guidance_instruction=input.get("instruction") or "",
             strict_quality=bool(input.get("strict_quality")),
         )
 
         return SkillResult(
             output={
-                "headline": None,
+                "headline": f"Page {page.page_number}" if page else None,
                 "body_text": text,
                 "pull_quote": None,
                 "image_guidance": "Use cinematic scene imagery only if it supports this page.",
@@ -59,6 +68,7 @@ class FictionBookPageSkill(Skill):
                 "source_refs": [],
                 "quality_notes": ["Narrative scene generated from two-pass fiction flow."],
                 "plan_summary": plan,
+                "seed_reason": seed_reason,
             },
             notes=notes,
         )

@@ -33,7 +33,7 @@ export function BookCreationWizard({ onCreated, onCancel }: { onCreated: (book: 
   const stepIndex = step === 'book-type' ? 0 : step === 'creation-mode' ? 1 : step === 'book-details' ? 2 : step === 'format-selection' ? 3 : 4
 
   useEffect(() => {
-    setCreationMode(selectedType.defaultMode)
+    setCreationMode(selectedType.recommendedMode)
     const matching = LAYOUT_OPTIONS.find((l) => l.selected_layout_id === selectedType.defaultFormat)
     if (matching) setFormatSettings(matching)
   }, [bookTypeId])
@@ -80,19 +80,27 @@ export function BookCreationWizard({ onCreated, onCancel }: { onCreated: (book: 
         {step === 'book-type' ? (
           <div className="wizard-grid">
             {BOOK_TYPES.map((t) => (
-              <OptionCard key={t.id} title={t.displayName} subtitle={t.description} selected={bookTypeId === t.id} onClick={() => setBookTypeId(t.id)} meta={<><span className="chip">{t.defaultMode}</span><span className="chip muted">{t.sourcePolicy}</span></>} />
+              <OptionCard
+                key={t.id}
+                title={t.shortLabel}
+                subtitle={`${t.displayName} · ${t.description}`}
+                selected={bookTypeId === t.id}
+                onClick={() => setBookTypeId(t.id)}
+                meta={<><span className="chip">{`Recommended: ${t.recommendedMode}`}</span><span className="chip muted">{t.sourcePolicy}</span></>}
+              />
             ))}
           </div>
         ) : null}
 
         {step === 'creation-mode' ? (
           <div className="wizard-mode-grid">
-            <OptionCard title="Classical" subtitle="Build page by page" selected={creationMode === 'classical'} disabled={!selectedType.allowedModes.includes('classical')} onClick={() => setCreationMode('classical')} meta={selectedType.defaultMode === 'classical' ? <span className="chip">Recommended</span> : null}>
+            <OptionCard title="Classical" subtitle="Build page by page" selected={creationMode === 'classical'} disabled={Boolean(selectedType.hardDisabledModes?.includes('classical') || !selectedType.allowedModes.includes('classical'))} onClick={() => setCreationMode('classical')} meta={selectedType.recommendedMode === 'classical' ? <span className="chip">Recommended</span> : null}>
               <ul><li>Write one page at a time</li><li>Generate, edit, approve</li><li>Great for fiction/memoir</li></ul>
             </OptionCard>
-            <OptionCard title="Expert" subtitle="Upload first, generate draft" selected={creationMode === 'expert'} disabled={!selectedType.allowedModes.includes('expert')} onClick={() => setCreationMode('expert')} meta={selectedType.defaultMode === 'expert' ? <span className="chip">Recommended</span> : null}>
+            <OptionCard title="Expert" subtitle="Upload first, generate draft" selected={creationMode === 'expert'} disabled={Boolean(selectedType.hardDisabledModes?.includes('expert') || !selectedType.allowedModes.includes('expert'))} onClick={() => setCreationMode('expert')} meta={selectedType.recommendedMode === 'expert' ? <span className="chip">Recommended</span> : null}>
               <ul><li>Upload docs, notes, images</li><li>Generate multi-page draft</li><li>Edit page by page</li></ul>
             </OptionCard>
+            {selectedType.discouragedModes?.includes(creationMode) ? <p className="muted">Expert is recommended because this book type usually depends on source material.</p> : null}
           </div>
         ) : null}
 

@@ -37,6 +37,7 @@ export function BookWorkspace({ book, pages, setPages, refreshPages, onBack, onS
   const [exportBusy, setExportBusy] = useState(false)
   const [includeDraft, setIncludeDraft] = useState(true)
   const [exportError, setExportError] = useState<string | null>(null)
+  const [sourcesOpen, setSourcesOpen] = useState(false)
 
   const sortedPages = useMemo(() => [...pages].sort((a, b) => a.page_number - b.page_number), [pages])
   const currentPage = activeTarget.kind === 'page' ? sortedPages.find((page) => page.id === activeTarget.pageId) ?? null : null
@@ -154,6 +155,7 @@ export function BookWorkspace({ book, pages, setPages, refreshPages, onBack, onS
           <small>{bookType.displayName}</small>
         </div>
         <div className="workspace-topbar-actions">
+          {expertMode ? <button type="button" className="ghost-button" onClick={() => setSourcesOpen(true)}>Sources</button> : null}
           <button type="button" onClick={() => setExportOpen(true)}>Finish & Export</button>
           <div className="workspace-projects">
           {books.slice(0, 4).map((item) => <button key={item.id} type="button" className={`project-dot ${item.id === book.id ? 'is-active' : ''}`} onClick={() => onSelectProject(item)}>{item.title.slice(0, 1)}</button>)}
@@ -165,12 +167,23 @@ export function BookWorkspace({ book, pages, setPages, refreshPages, onBack, onS
 
       <div className="workspace-grid">
         <div>
-          {expertMode && book.project_id ? <SourceLibraryPane projectId={book.project_id} sources={sources} onRefresh={refreshSources} selected={selectedSourceIds} setSelected={setSelectedSourceIds} /> : null}
           <ChatPane pageNumber={currentPage?.page_number || nextPageNumber} draft={draft} setDraft={setDraft} busy={busy} currentPage={currentPage} onSaveDraft={saveDraft} onGenerate={generatePage} onApprove={approvePage} onNextPage={() => void createNextPage()} />
           {expertMode ? <QualityReportPanel report={qualityReport || undefined} warnings={warnings} /> : null}
         </div>
-        <BookPreviewPane book={book} pages={sortedPages} activePageId={activeTarget.kind === 'page' ? activeTarget.pageId : null} showCover={activeTarget.kind === 'cover'} onSelectCover={() => setActiveTarget({ kind: 'cover' })} onSelectPage={(id) => setActiveTarget({ kind: 'page', pageId: id })} onCreateNextPage={() => void createNextPage()} />
+        <BookPreviewPane book={book} pages={sortedPages} activeTarget={activeTarget} onSelectCover={() => setActiveTarget({ kind: 'cover' })} onSelectPage={(id) => setActiveTarget({ kind: 'page', pageId: id })} onCreateNextPage={() => void createNextPage()} />
       </div>
+      {expertMode && sourcesOpen && book.project_id ? (
+        <div className="export-modal-backdrop" role="dialog" aria-modal="true">
+          <div className="export-modal">
+            <h3>Sources</h3>
+            <p className="muted">Upload, process, and select source material without leaving page editing.</p>
+            <SourceLibraryPane projectId={book.project_id} sources={sources} onRefresh={refreshSources} selected={selectedSourceIds} setSelected={setSelectedSourceIds} />
+            <div className="chat-actions">
+              <button type="button" className="ghost-button" onClick={() => setSourcesOpen(false)}>Close</button>
+            </div>
+          </div>
+        </div>
+      ) : null}
 
       <DeveloperDiagnostics contextPacket={contextPacket} continuityNotes={continuityNotes} />
       {exportOpen ? (

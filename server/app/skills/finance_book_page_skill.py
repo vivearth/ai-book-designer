@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from app.skills.base import Skill, SkillContext, SkillResult
-from app.skills.writing_flow import maybe_run_two_pass_page_generation
+from app.skills.writing_flow import derive_page_seed, maybe_run_two_pass_page_generation
 
 
 class FinanceBookPageSkill(Skill):
@@ -11,7 +11,16 @@ class FinanceBookPageSkill(Skill):
     version = "1.0"
 
     async def run(self, input: dict, context: SkillContext) -> SkillResult:  # noqa: A003
-        goal = input.get("page_direction") or input.get("instruction") or "Explain financial priorities"
+        goal, rough_notes, seed_reason = derive_page_seed(
+            book_title=context.book.title if context.book else "",
+            book_topic=context.book.topic if context.book else "",
+            book_type=context.book.book_type_id if context.book else "finance",
+            page_number=context.page.page_number if context.page else 1,
+            page_direction=input.get("page_direction") or "",
+            rough_notes=input.get("rough_text") or "",
+            audience=(context.project.audience if context.project else ""),
+            objective=(context.project.objective if context.project else ""),
+        )
         target_words = input.get("target_words", 250)
         source_chunks = context.source_chunks or []
         source_text = " ".join(c.text for c in source_chunks[:3])
@@ -24,7 +33,7 @@ class FinanceBookPageSkill(Skill):
             book_type=context.book.book_type_id if context.book else "finance",
             previous_summary=(context.book.memory.global_summary if (context.book and context.book.memory) else ""),
             direction=goal,
-            rough_notes=input.get("rough_text") or "",
+            rough_notes=rough_notes,
             source_excerpts=source_text,
             target_words=int(target_words),
             composition=(context.page.layout_json or {}).get("composition", "text_only") if context.page else "text_only",
@@ -39,6 +48,7 @@ class FinanceBookPageSkill(Skill):
                 "Goal: why cash visibility matters during uncertain planning cycles.\n"
                 "Output: careful explanatory page with no fake stats."
             ),
+            guidance_instruction=input.get("instruction") or "",
             strict_quality=bool(input.get("strict_quality")),
         )
         warnings: list[str] = []
@@ -56,6 +66,7 @@ class FinanceBookPageSkill(Skill):
                 "source_refs": refs,
                 "quality_notes": ["No fabricated percentages, returns, or investment promises."],
                 "plan_summary": plan,
+                "seed_reason": seed_reason,
             },
             notes=notes,
             warnings=warnings,

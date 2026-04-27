@@ -7,6 +7,7 @@ from app.skills.base import SkillContext
 
 
 LEAK_MARKERS = ["SYSTEM:", "BOOK PROFILE", "CONSTRAINTS", "TASK", "Return only", "Draft page content"]
+GUIDANCE_LEAK_MARKERS = ["shape this into a polished page", "preserving continuity", "polished page"]
 
 
 def _word_budget(target_words: int) -> tuple[int, int]:
@@ -46,6 +47,7 @@ async def build_page_plan(
     objective: str,
     domain_instructions: str,
     few_shot: str,
+    guidance_instruction: str = "",
     strict_quality: bool = False,
 ) -> str:
     min_words, max_words = _word_budget(target_words)
@@ -62,6 +64,7 @@ Source excerpts: {source_excerpts}
 Audience: {audience}
 Objective: {objective}
 Composition: {composition}
+Generation guidance, not page content: {guidance_instruction}
 Target visible page budget: {max_words} words (draft prose should be between {min_words} and {max_words}).
 
 Rules:
@@ -69,6 +72,7 @@ Rules:
 - No JSON.
 - No prompt labels.
 - No boilerplate.
+- Do not quote or paraphrase generation guidance in page content.
 {domain_instructions}
 {few_shot}
 {"Use stricter anti-repetition and source anchoring." if strict_quality else ""}
@@ -91,6 +95,7 @@ async def write_page_from_plan(
     plan_text: str,
     domain_instructions: str,
     few_shot: str,
+    guidance_instruction: str = "",
     strict_quality: bool = False,
 ) -> tuple[str, list[str]]:
     min_words, max_words = _word_budget(target_words)
@@ -102,6 +107,7 @@ Page direction: {direction}
 Rough notes: {rough_notes}
 Source excerpts: {source_excerpts}
 Composition: {composition}
+Generation guidance, not page content: {guidance_instruction}
 Plan beats:
 {plan_text}
 
@@ -114,6 +120,7 @@ Return only page prose.
 No JSON.
 No SYSTEM/TASK labels.
 No repeated sentences.
+Do not quote, paraphrase, or begin the page with the generation guidance.
 {domain_instructions}
 {few_shot}
 {"Use stricter style and avoid filler." if strict_quality else ""}
@@ -216,6 +223,7 @@ async def maybe_run_two_pass_page_generation(
     objective: str = "",
     domain_instructions: str = "",
     few_shot: str = "",
+    guidance_instruction: str = "",
     strict_quality: bool = False,
 ) -> tuple[str, list[str], str]:
     if context.llm_engine is None:
@@ -247,6 +255,7 @@ async def maybe_run_two_pass_page_generation(
         objective=objective,
         domain_instructions=domain_instructions,
         few_shot=few_shot,
+        guidance_instruction=guidance_instruction,
         strict_quality=strict_quality,
     )
     prose, notes = await write_page_from_plan(
@@ -262,6 +271,37 @@ async def maybe_run_two_pass_page_generation(
         plan_text=plan,
         domain_instructions=domain_instructions,
         few_shot=few_shot,
+        guidance_instruction=guidance_instruction,
         strict_quality=strict_quality,
     )
+    lower = prose.lower()
+    if any(marker in lower for marker in GUIDANCE_LEAK_MARKERS):
+        cleaned = prose
+        for marker in GUIDANCE_LEAK_MARKERS:
+            cleaned = re.sub(re.escape(marker), "", cleaned, flags=re.IGNORECASE)
+        prose = re.sub(r"\s+", " ", cleaned).strip()
+        notes.append("Guidance leakage detected and cleaned from generated prose.")
     return prose, notes, plan
+
+
+def derive_page_seed(
+    *,
+    book_title: str,
+    book_topic: str,
+    book_type: str,
+    page_number: int,
+    page_direction: str,
+    rough_notes: str,
+    audience: str = "",
+    objective: str = "",
+) -> tuple[str, str, str]:
+    direction = (page_direction or "").strip()
+    rough = (rough_notes or "").strip()
+    if direction or rough:
+        return direction or "Continue the book", rough, "user_provided_page_inputs"
+    if "fiction" in book_type or "novel" in book_type or "memoir" in book_type:
+        return f"Open page {page_number} of {book_title or 'the story'}", f"Setting seed: {book_topic or book_title or 'A character enters a tense moment.'}", "title_topic_seed_fiction"
+    professional_seed = " ".join(part for part in [book_topic, objective, audience] if part).strip()
+    if professional_seed:
+        return f"Open page {page_number} of {book_title or 'the book'}", professional_seed, "title_topic_seed_professional"
+    return f"Opening page {page_number}", f"Theme seed from {book_title or 'book concept'}", "minimal_fallback_seed"
