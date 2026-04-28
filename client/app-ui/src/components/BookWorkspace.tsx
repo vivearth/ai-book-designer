@@ -13,7 +13,7 @@ import { LayoutOptionsPanel } from './LayoutOptionsPanel'
 type Draft = { user_prompt: string; user_text: string; instruction: string; imageFile: File | null }
 const INITIAL_DRAFT: Draft = { user_prompt: '', user_text: '', instruction: 'Shape this into a polished page while preserving continuity.', imageFile: null }
 
-export function BookWorkspace({ book, pages, setPages, refreshPages, onBack, onSelectProject, books, project }: {
+export function BookWorkspace({ book, pages, setPages, refreshPages, onBack, onSelectProject, books }: {
   book: Book
   pages: Page[]
   setPages: (pages: Page[]) => void
@@ -107,13 +107,12 @@ export function BookWorkspace({ book, pages, setPages, refreshPages, onBack, onS
       await api.updatePage(page.id, { user_prompt: draft.user_prompt, user_text: draft.user_text })
       if (draft.imageFile) await api.uploadImage(page.id, draft.imageFile, 'Page inspiration')
 
-      const contentMode = book.book_type_id
-      const allowNewCharacters = contentMode.includes('fiction') && (page.page_number === 1 || !book.memory?.global_summary)
+      const allowNewCharacters = book.book_type_id.includes('fiction') && (page.page_number === 1 || !book.memory?.global_summary)
       const page_capacity_hint = estimatePageCapacity(book, page)
       const result: GenerationResponse = await api.generatePage(page.id, {
         instruction: draft.instruction,
         allow_new_characters: allowNewCharacters,
-        content_mode: contentMode,
+        content_mode: book.book_type_id,
         page_capacity_hint,
         selected_source_asset_ids: expertMode ? selectedSourceIds : [],
         auto_retrieve_sources: true,
@@ -228,19 +227,19 @@ export function BookWorkspace({ book, pages, setPages, refreshPages, onBack, onS
   }, [sortedPages])
 
   return (
-    <div className="workspace-shell">
+    <div className="workspace-shell studio-shell flow-background">
       <header className="workspace-topbar">
         <button type="button" className="ghost-button" onClick={onBack}>Back</button>
         <div>
-          <p className="kicker">Book studio · {book.creation_mode}</p>
+          <p className="kicker">{book.creation_mode} mode · {bookType.displayName}</p>
           <h1>{book.title}</h1>
-          <small>{bookType.displayName}</small>
+          <small className="muted">Saved status syncs while you work.</small>
         </div>
         <div className="workspace-topbar-actions">
           {expertMode ? <button type="button" className="ghost-button" onClick={() => setSourcesOpen(true)}>Sources</button> : null}
-          <button type="button" onClick={() => setExportOpen(true)}>Finish & Export</button>
+          <button type="button" className="premium-button" onClick={() => setExportOpen(true)}>Finish & Export</button>
           <div className="workspace-projects">
-          {books.slice(0, 4).map((item) => <button key={item.id} type="button" className={`project-dot ${item.id === book.id ? 'is-active' : ''}`} onClick={() => onSelectProject(item)}>{item.title.slice(0, 1)}</button>)}
+            {books.slice(0, 4).map((item) => <button key={item.id} type="button" className={`project-dot ${item.id === book.id ? 'is-active' : ''}`} onClick={() => onSelectProject(item)}>{item.title.slice(0, 1)}</button>)}
           </div>
         </div>
       </header>
@@ -250,6 +249,9 @@ export function BookWorkspace({ book, pages, setPages, refreshPages, onBack, onS
       {warnings.find((w) => /fallback|timeout|ollama/i.test(w)) ? <div className="warning-banner">{warnings.find((w) => /fallback|timeout|ollama/i.test(w))}</div> : null}
 
       <div className="workspace-grid">
+        <aside className="workspace-rail glass-card">
+          <button className="is-active">Pages</button><button>Content</button><button>Images</button><button>Style</button><button>AI Assist</button><button>Settings</button><button onClick={() => setExportOpen(true)}>Export</button>
+        </aside>
         <div>
           <ChatPane
             pageNumber={currentPage?.page_number || nextPageNumber}
@@ -271,7 +273,7 @@ export function BookWorkspace({ book, pages, setPages, refreshPages, onBack, onS
       </div>
       {expertMode && sourcesOpen && book.project_id ? (
         <div className="export-modal-backdrop" role="dialog" aria-modal="true">
-          <div className="export-modal">
+          <div className="export-modal glass-card">
             <h3>Sources</h3>
             <p className="muted">Upload, process, and select source material without leaving page editing.</p>
             <SourceLibraryPane projectId={book.project_id} sources={sources} onRefresh={refreshSources} selected={selectedSourceIds} setSelected={setSelectedSourceIds} />
@@ -285,7 +287,7 @@ export function BookWorkspace({ book, pages, setPages, refreshPages, onBack, onS
       <DeveloperDiagnostics contextPacket={contextPacket} continuityNotes={continuityNotes} />
       {exportOpen ? (
         <div className="export-modal-backdrop" role="dialog" aria-modal="true">
-          <div className="export-modal">
+          <div className="export-modal glass-card">
             <h3>Export PDF</h3>
             <p><strong>{book.title}</strong></p>
             <p>{sortedPages.length} pages · {pageStats.approved} approved · {pageStats.generated} generated · {pageStats.draftCount} draft</p>
@@ -296,7 +298,7 @@ export function BookWorkspace({ book, pages, setPages, refreshPages, onBack, onS
             {exportError ? <p className="error-banner">{exportError}</p> : null}
             <div className="chat-actions">
               <button type="button" className="ghost-button" onClick={() => setExportOpen(false)} disabled={exportBusy}>Cancel</button>
-              <button type="button" onClick={() => void exportPdf()} disabled={exportBusy}>{exportBusy ? 'Exporting…' : 'Download PDF'}</button>
+              <button type="button" className="premium-button" onClick={() => void exportPdf()} disabled={exportBusy}>{exportBusy ? 'Exporting…' : 'Download PDF'}</button>
             </div>
           </div>
         </div>

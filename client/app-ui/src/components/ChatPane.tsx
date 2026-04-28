@@ -1,3 +1,4 @@
+import { useState } from 'react'
 import type { Page } from '../types'
 
 type Draft = {
@@ -34,29 +35,37 @@ export function ChatPane({
   onViewLayoutOptions: () => void
   hasExistingLayoutOptions: boolean
 }) {
+  const [tab, setTab] = useState<'content' | 'layout' | 'design'>('content')
+
   return (
-    <section className="chat-pane">
-      <div className="chat-thread">
-        <article className="chat-message chat-message--assistant">
-          <p className="chat-message__eyebrow">Book design assistant</p>
-          <h3>Tell me what should happen on page {pageNumber}.</h3>
-          <p>You can paste rough text, describe the scene, or upload an image. I’ll keep the book format and story memory in mind.</p>
-        </article>
+    <section className="chat-pane editor-panel glass-card">
+      <div className="chat-message chat-message--assistant">
+        <p className="chat-message__eyebrow">Page editor</p>
+        <h3>Page {pageNumber} · {currentPage?.status || 'draft'}</h3>
+      </div>
+
+      <div className="panel-tabs">
+        <button className={tab === 'content' ? 'is-active' : ''} onClick={() => setTab('content')}>Content</button>
+        <button className={tab === 'layout' ? 'is-active' : ''} onClick={() => setTab('layout')}>Layout Options</button>
+        <button className={tab === 'design' ? 'is-active' : ''} onClick={() => setTab('design')}>Design</button>
+      </div>
+
+      {tab === 'content' ? (
         <article className="chat-message chat-message--user draft-composer">
           <label>
             Page direction
             <textarea value={draft.user_prompt} onChange={(event) => setDraft({ ...draft, user_prompt: event.target.value })} placeholder="What belongs on this page?" />
           </label>
           <label>
-            Rough text or notes
-            <textarea value={draft.user_text} onChange={(event) => setDraft({ ...draft, user_text: event.target.value })} placeholder="Paste a rough draft, scene beats, ideas, or captions." />
+            Rough text / page copy
+            <textarea value={draft.user_text} onChange={(event) => setDraft({ ...draft, user_text: event.target.value })} placeholder="Paste rough draft, scene beats, or notes." />
           </label>
           <label>
-            Assistant instruction
-            <textarea value={draft.instruction} onChange={(event) => setDraft({ ...draft, instruction: event.target.value })} placeholder="Polish the prose, keep it calm and literary, maintain continuity." />
+            Assistant guidance
+            <textarea value={draft.instruction} onChange={(event) => setDraft({ ...draft, instruction: event.target.value })} placeholder="Polish prose, preserve continuity, keep tone aligned." />
           </label>
           <label className="file-input">
-            <span>Add page image</span>
+            <span>Image upload</span>
             <div className="file-input-dropzone">
               <p>Drop image here or choose file</p>
               <input type="file" accept="image/*" onChange={(event) => setDraft({ ...draft, imageFile: event.target.files?.[0] ?? null })} />
@@ -65,21 +74,30 @@ export function ChatPane({
           </label>
           <div className="chat-actions">
             <button type="button" className="ghost-button" onClick={onSaveDraft} disabled={busy}>Save draft</button>
-            <button type="button" onClick={onGenerate} disabled={busy}>Generate page</button>
-            <button type="button" className="ghost-button" onClick={onGenerateLayoutOptions} disabled={busy}>Generate Layout Options</button>
-            {hasExistingLayoutOptions ? <button type="button" className="ghost-button" onClick={onViewLayoutOptions} disabled={busy}>View Layout Options</button> : null}
-            <button type="button" className="secondary-button" onClick={onApprove} disabled={busy || !currentPage}>Approve page</button>
-            <button type="button" className="ghost-button" onClick={onNextPage} disabled={busy}>Next page</button>
+            <button type="button" className="premium-button" onClick={onGenerate} disabled={busy}>Generate page</button>
+            <button type="button" className="secondary-button" onClick={onApprove} disabled={busy || !currentPage}>Approve</button>
+            <button type="button" className="ghost-button" onClick={onNextPage} disabled={busy}>Add next page</button>
           </div>
         </article>
-        {currentPage ? (
-          <article className="chat-message chat-message--assistant generated-note">
-            <p className="chat-message__eyebrow">Current page</p>
-            <h4>Page {currentPage.page_number} · {currentPage.status}</h4>
-            <p>{currentPage.final_text || currentPage.generated_text || currentPage.user_text || 'No page copy yet.'}</p>
-          </article>
-        ) : null}
-      </div>
+      ) : null}
+
+      {tab === 'layout' ? (
+        <article className="chat-message chat-message--user">
+          <h4>Generate layout options</h4>
+          <p className="muted">Create Option A and Option B, compare mini previews, then apply one.</p>
+          <div className="chat-actions">
+            <button type="button" className="premium-button" onClick={onGenerateLayoutOptions} disabled={busy}>Generate 2 Layouts</button>
+            {hasExistingLayoutOptions ? <button type="button" className="ghost-button" onClick={onViewLayoutOptions} disabled={busy}>View options</button> : null}
+          </div>
+        </article>
+      ) : null}
+
+      {tab === 'design' ? (
+        <article className="chat-message chat-message--user">
+          <h4>Design controls</h4>
+          <p className="muted">Typography policy and image style controls will live here. Current generation and preview flows remain unchanged.</p>
+        </article>
+      ) : null}
     </section>
   )
 }

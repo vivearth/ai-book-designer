@@ -67,12 +67,14 @@ export function BookCreationWizard({ onCreated, onCancel }: { onCreated: (book: 
       : { topic: 'What campaign, category, product, or market problem should this book shape?', audience: 'Who is this for? CMOs, founders, buyers, customers…', objective: 'What should the reader understand, believe, or do after reading?' }
 
   return (
-    <div className="wizard-shell">
-      <Card className="wizard-card">
+    <div className="wizard-shell flow-background">
+      <div className="gradient-orb gradient-orb--one" />
+      <div className="gradient-orb gradient-orb--two" />
+      <Card className="wizard-card glass-card">
         <header className="wizard-header">
           <div>
-            <p className="kicker">Guided book setup</p>
-            <h2>Build your book studio</h2>
+            <p className="kicker">Immersive setup</p>
+            <h2>{step === 'book-type' ? 'What are you designing?' : step === 'creation-mode' ? 'How do you want to build it?' : step === 'book-details' ? 'Have you thought of a title?' : step === 'format-selection' ? 'Pick your format style' : 'Add your source material'}</h2>
           </div>
           <Stepper steps={creationMode === 'expert' ? STEPS : STEPS.slice(0, 4)} current={stepIndex} />
         </header>
@@ -83,11 +85,13 @@ export function BookCreationWizard({ onCreated, onCancel }: { onCreated: (book: 
               <OptionCard
                 key={t.id}
                 title={t.shortLabel}
-                subtitle={`${t.displayName} · ${t.description}`}
+                subtitle={t.displayName}
                 selected={bookTypeId === t.id}
                 onClick={() => setBookTypeId(t.id)}
                 meta={<><span className="chip">{`Recommended: ${t.recommendedMode}`}</span><span className="chip muted">{t.sourcePolicy}</span></>}
-              />
+              >
+                <p>{t.description}</p>
+              </OptionCard>
             ))}
           </div>
         ) : null}
@@ -95,24 +99,23 @@ export function BookCreationWizard({ onCreated, onCancel }: { onCreated: (book: 
         {step === 'creation-mode' ? (
           <div className="wizard-mode-grid">
             <OptionCard title="Classical" subtitle="Build page by page" selected={creationMode === 'classical'} disabled={Boolean(selectedType.hardDisabledModes?.includes('classical') || !selectedType.allowedModes.includes('classical'))} onClick={() => setCreationMode('classical')} meta={selectedType.recommendedMode === 'classical' ? <span className="chip">Recommended</span> : null}>
-              <ul><li>Write one page at a time</li><li>Generate, edit, approve</li><li>Great for fiction/memoir</li></ul>
+              <ul><li>Write one page at a time</li><li>Generate, edit, approve</li><li>Best for fiction, memoir, illustrated books</li></ul>
             </OptionCard>
             <OptionCard title="Expert" subtitle="Upload first, generate draft" selected={creationMode === 'expert'} disabled={Boolean(selectedType.hardDisabledModes?.includes('expert') || !selectedType.allowedModes.includes('expert'))} onClick={() => setCreationMode('expert')} meta={selectedType.recommendedMode === 'expert' ? <span className="chip">Recommended</span> : null}>
               <ul><li>Upload docs, notes, images</li><li>Generate multi-page draft</li><li>Edit page by page</li></ul>
             </OptionCard>
-            {selectedType.discouragedModes?.includes(creationMode) ? <p className="muted">Expert is recommended because this book type usually depends on source material.</p> : null}
           </div>
         ) : null}
 
         {step === 'book-details' ? (
           <div className="wizard-details-grid">
             <div>
-              <TextField label="Title" value={title} onChange={(e) => setTitle(e.target.value)} placeholder="Untitled" />
-              <TextAreaField label={bookTypeId.includes('fiction') ? 'Story premise' : 'Book perspective'} value={topic} onChange={(e) => setTopic(e.target.value)} placeholder={placeholders.topic} rows={5} />
+              <TextField label="Title" value={title} onChange={(e) => setTitle(e.target.value)} placeholder="The Future of Work" />
+              <TextAreaField label="What is the book about?" value={topic} onChange={(e) => setTopic(e.target.value)} placeholder={placeholders.topic} rows={4} />
               <TextField label="Audience" value={audience} onChange={(e) => setAudience(e.target.value)} placeholder={placeholders.audience} />
               <TextAreaField label="Objective" value={objective} onChange={(e) => setObjective(e.target.value)} placeholder={placeholders.objective} rows={3} />
             </div>
-            <Card className="helper-card"><h4>{selectedType.displayName}</h4><p>{selectedType.description}</p><p>Mode: <strong>{creationMode}</strong></p><p>Default tone: {selectedType.defaultTone}</p></Card>
+            <Card className="helper-card editor-panel"><h4>{selectedType.displayName}</h4><p>{selectedType.description}</p><p>Mode: <strong>{creationMode}</strong></p><p>Tone: {selectedType.defaultTone}</p></Card>
           </div>
         ) : null}
 
@@ -120,7 +123,7 @@ export function BookCreationWizard({ onCreated, onCancel }: { onCreated: (book: 
 
         {step === 'expert-source-setup' ? (
           <div>
-            <p className="muted">Add the material this book should be built from. Upload files, paste notes, or skip and start empty.</p>
+            <p className="muted">Upload files, add notes, select relevant assets, then generate a draft. You can also skip and start from the workspace.</p>
             {book?.project_id ? <SourceLibraryPane projectId={book.project_id} sources={sources} onRefresh={async () => setSources(await api.listSources(book.project_id!))} selected={selectedSourceIds} setSelected={setSelectedSourceIds} /> : null}
           </div>
         ) : null}
@@ -134,7 +137,7 @@ export function BookCreationWizard({ onCreated, onCancel }: { onCreated: (book: 
           {step === 'format-selection' ? <Button variant="primary" onClick={() => void createBookBase()} disabled={isSubmitting}>{isSubmitting ? 'Creating…' : 'Create book'}</Button> : null}
           {step === 'expert-source-setup' ? (
             <>
-              <Button variant="secondary" onClick={() => { if (book) onCreated(book) }} disabled={isSubmitting}>Skip & open workspace</Button>
+              <Button variant="secondary" onClick={() => { if (book) onCreated(book) }} disabled={isSubmitting}>Skip and open workspace</Button>
               <Button variant="primary" onClick={async () => {
                 if (!book) return
                 setIsSubmitting(true)

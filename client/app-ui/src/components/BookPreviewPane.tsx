@@ -16,10 +16,10 @@ export function BookPreviewPane({ book, pages, activeTarget, onSelectCover, onSe
   const activePage = activeTarget.kind === 'page' ? pages.find((page) => page.id === activeTarget.pageId) ?? null : null
 
   return (
-    <section className="preview-pane">
+    <section className="preview-pane preview-stage glass-card">
       <div className="preview-pane__header">
         <div>
-          <p className="kicker">Book preview</p>
+          <p className="kicker">Live preview stage</p>
           <h2>{book.title}</h2>
         </div>
         <PageNavigator pages={pages} activeTarget={activeTarget} onSelectCover={onSelectCover} onSelectPage={onSelectPage} onCreateNext={onCreateNextPage} />
