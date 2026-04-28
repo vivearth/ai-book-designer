@@ -11,6 +11,7 @@ import { OptionCard } from './ui/OptionCard'
 import { Stepper } from './ui/Stepper'
 
 const STEPS = ['Type', 'Mode', 'Details', 'Format', 'Sources']
+const TYPE_MARKS: Record<string, string> = { fiction_novel: '✦', memoir: '❖', illustrated: '◉', marketing: '⬢', finance: '◌', leadership: '✳', case_study: '▣', guide: '◈', custom: '◎' }
 
 type Step = 'book-type' | 'creation-mode' | 'book-details' | 'format-selection' | 'expert-source-setup'
 
@@ -84,7 +85,8 @@ export function BookCreationWizard({ onCreated, onCancel }: { onCreated: (book: 
             {BOOK_TYPES.map((t) => (
               <OptionCard
                 key={t.id}
-                title={t.shortLabel}
+                className="book-type-card"
+                title={`${TYPE_MARKS[t.id] || "✦"} ${t.shortLabel}`}
                 subtitle={t.displayName}
                 selected={bookTypeId === t.id}
                 onClick={() => setBookTypeId(t.id)}
@@ -98,10 +100,10 @@ export function BookCreationWizard({ onCreated, onCancel }: { onCreated: (book: 
 
         {step === 'creation-mode' ? (
           <div className="wizard-mode-grid">
-            <OptionCard title="Classical" subtitle="Build page by page" selected={creationMode === 'classical'} disabled={Boolean(selectedType.hardDisabledModes?.includes('classical') || !selectedType.allowedModes.includes('classical'))} onClick={() => setCreationMode('classical')} meta={selectedType.recommendedMode === 'classical' ? <span className="chip">Recommended</span> : null}>
+            <OptionCard className="mode-hero-card" title="Classical" subtitle="Build page by page" selected={creationMode === 'classical'} disabled={Boolean(selectedType.hardDisabledModes?.includes('classical') || !selectedType.allowedModes.includes('classical'))} onClick={() => setCreationMode('classical')} meta={selectedType.recommendedMode === 'classical' ? <span className="chip">Recommended</span> : null}>
               <ul><li>Write one page at a time</li><li>Generate, edit, approve</li><li>Best for fiction, memoir, illustrated books</li></ul>
             </OptionCard>
-            <OptionCard title="Expert" subtitle="Upload first, generate draft" selected={creationMode === 'expert'} disabled={Boolean(selectedType.hardDisabledModes?.includes('expert') || !selectedType.allowedModes.includes('expert'))} onClick={() => setCreationMode('expert')} meta={selectedType.recommendedMode === 'expert' ? <span className="chip">Recommended</span> : null}>
+            <OptionCard className="mode-hero-card" title="Expert" subtitle="Upload first, generate draft" selected={creationMode === 'expert'} disabled={Boolean(selectedType.hardDisabledModes?.includes('expert') || !selectedType.allowedModes.includes('expert'))} onClick={() => setCreationMode('expert')} meta={selectedType.recommendedMode === 'expert' ? <span className="chip">Recommended</span> : null}>
               <ul><li>Upload docs, notes, images</li><li>Generate multi-page draft</li><li>Edit page by page</li></ul>
             </OptionCard>
           </div>

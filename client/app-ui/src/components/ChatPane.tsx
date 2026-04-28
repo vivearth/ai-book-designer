@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import type { Page } from '../types'
 
 type Draft = {
@@ -7,6 +7,8 @@ type Draft = {
   instruction: string
   imageFile: File | null
 }
+
+type EditorTab = 'content' | 'layout' | 'design'
 
 export function ChatPane({
   pageNumber,
@@ -21,6 +23,7 @@ export function ChatPane({
   onGenerateLayoutOptions,
   onViewLayoutOptions,
   hasExistingLayoutOptions,
+  forcedTab,
 }: {
   pageNumber: number
   draft: Draft
@@ -34,8 +37,12 @@ export function ChatPane({
   onGenerateLayoutOptions: () => void
   onViewLayoutOptions: () => void
   hasExistingLayoutOptions: boolean
+  forcedTab?: EditorTab
 }) {
-  const [tab, setTab] = useState<'content' | 'layout' | 'design'>('content')
+  const [tab, setTab] = useState<EditorTab>('content')
+  useEffect(() => {
+    if (forcedTab) setTab(forcedTab)
+  }, [forcedTab])
 
   return (
     <section className="chat-pane editor-panel glass-card">
@@ -44,11 +51,13 @@ export function ChatPane({
         <h3>Page {pageNumber} · {currentPage?.status || 'draft'}</h3>
       </div>
 
-      <div className="panel-tabs">
-        <button className={tab === 'content' ? 'is-active' : ''} onClick={() => setTab('content')}>Content</button>
-        <button className={tab === 'layout' ? 'is-active' : ''} onClick={() => setTab('layout')}>Layout Options</button>
-        <button className={tab === 'design' ? 'is-active' : ''} onClick={() => setTab('design')}>Design</button>
-      </div>
+      {!forcedTab ? (
+        <div className="panel-tabs">
+          <button className={tab === 'content' ? 'is-active' : ''} onClick={() => setTab('content')}>Content</button>
+          <button className={tab === 'layout' ? 'is-active' : ''} onClick={() => setTab('layout')}>Layout Options</button>
+          <button className={tab === 'design' ? 'is-active' : ''} onClick={() => setTab('design')}>Design</button>
+        </div>
+      ) : null}
 
       {tab === 'content' ? (
         <article className="chat-message chat-message--user draft-composer">
@@ -63,14 +72,6 @@ export function ChatPane({
           <label>
             Assistant guidance
             <textarea value={draft.instruction} onChange={(event) => setDraft({ ...draft, instruction: event.target.value })} placeholder="Polish prose, preserve continuity, keep tone aligned." />
-          </label>
-          <label className="file-input">
-            <span>Image upload</span>
-            <div className="file-input-dropzone">
-              <p>Drop image here or choose file</p>
-              <input type="file" accept="image/*" onChange={(event) => setDraft({ ...draft, imageFile: event.target.files?.[0] ?? null })} />
-            </div>
-            {draft.imageFile ? <span className="file-chip">{draft.imageFile.name}</span> : <span className="muted">No file selected yet</span>}
           </label>
           <div className="chat-actions">
             <button type="button" className="ghost-button" onClick={onSaveDraft} disabled={busy}>Save draft</button>

@@ -1,8 +1,8 @@
 import type { ReactNode } from 'react'
 
-export function OptionCard({ title, subtitle, meta, selected, disabled, onClick, children }: { title: string; subtitle?: string; meta?: ReactNode; selected?: boolean; disabled?: boolean; onClick?: () => void; children?: ReactNode }) {
+export function OptionCard({ title, subtitle, meta, selected, disabled, onClick, children, className = '' }: { title: string; subtitle?: string; meta?: ReactNode; selected?: boolean; disabled?: boolean; onClick?: () => void; children?: ReactNode; className?: string }) {
   return (
-    <button type="button" disabled={disabled} className={`ui-option-card ${selected ? 'is-selected' : ''} ${disabled ? 'is-disabled' : ''}`.trim()} onClick={onClick}>
+    <button type="button" disabled={disabled} className={`ui-option-card ${selected ? 'is-selected' : ''} ${disabled ? 'is-disabled' : ''} ${className}`.trim()} onClick={onClick}>
       <header>
         <h4>{title}</h4>
         {subtitle ? <p>{subtitle}</p> : null}

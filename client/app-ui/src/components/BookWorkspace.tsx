@@ -13,6 +13,8 @@ import { LayoutOptionsPanel } from './LayoutOptionsPanel'
 type Draft = { user_prompt: string; user_text: string; instruction: string; imageFile: File | null }
 const INITIAL_DRAFT: Draft = { user_prompt: '', user_text: '', instruction: 'Shape this into a polished page while preserving continuity.', imageFile: null }
 
+type RailPanel = 'pages' | 'content' | 'layout' | 'images' | 'style' | 'assist' | 'settings'
+
 export function BookWorkspace({ book, pages, setPages, refreshPages, onBack, onSelectProject, books }: {
   book: Book
   pages: Page[]
@@ -43,6 +45,7 @@ export function BookWorkspace({ book, pages, setPages, refreshPages, onBack, onS
   const [layoutOptions, setLayoutOptions] = useState<PageLayoutOption[]>([])
   const [layoutOptionsBusy, setLayoutOptionsBusy] = useState(false)
   const [hasSavedLayoutOptions, setHasSavedLayoutOptions] = useState(false)
+  const [activeRailPanel, setActiveRailPanel] = useState<RailPanel>('content')
 
   const sortedPages = useMemo(() => [...pages].sort((a, b) => a.page_number - b.page_number), [pages])
   const currentPage = activeTarget.kind === 'page' ? sortedPages.find((page) => page.id === activeTarget.pageId) ?? null : null
@@ -250,23 +253,83 @@ export function BookWorkspace({ book, pages, setPages, refreshPages, onBack, onS
 
       <div className="workspace-grid">
         <aside className="workspace-rail glass-card">
-          <button className="is-active">Pages</button><button>Content</button><button>Images</button><button>Style</button><button>AI Assist</button><button>Settings</button><button onClick={() => setExportOpen(true)}>Export</button>
+          <button className={activeRailPanel === 'pages' ? 'is-active' : ''} onClick={() => setActiveRailPanel('pages')}>Pages</button>
+          <button className={activeRailPanel === 'content' ? 'is-active' : ''} onClick={() => setActiveRailPanel('content')}>Content</button>
+          <button className={activeRailPanel === 'layout' ? 'is-active' : ''} onClick={() => setActiveRailPanel('layout')}>Layout</button>
+          <button className={activeRailPanel === 'images' ? 'is-active' : ''} onClick={() => setActiveRailPanel('images')}>Images</button>
+          <button disabled title="Coming soon">Style · Soon</button>
+          <button disabled title="Coming soon">AI Assist · Soon</button>
+          <button disabled title="Coming soon">Settings · Soon</button>
         </aside>
-        <div>
-          <ChatPane
-            pageNumber={currentPage?.page_number || nextPageNumber}
-            draft={draft}
-            setDraft={setDraft}
-            busy={busy || layoutOptionsBusy}
-            currentPage={currentPage}
-            onSaveDraft={saveDraft}
-            onGenerate={generatePage}
-            onApprove={approvePage}
-            onNextPage={() => void createNextPage()}
-            onGenerateLayoutOptions={() => void generateLayoutOptions()}
-            onViewLayoutOptions={() => void viewLayoutOptions()}
-            hasExistingLayoutOptions={hasSavedLayoutOptions || Boolean(currentPage?.selected_layout_option_id)}
-          />
+        <div className="workspace-editor-shell">
+          {activeRailPanel === 'pages' ? (
+            <section className="glass-card rail-panel">
+              <h3>Pages</h3>
+              <div className="page-list-panel">
+                {sortedPages.map((p) => (
+                  <button key={p.id} type="button" className={`page-row ${currentPage?.id === p.id ? 'is-active' : ''}`} onClick={() => setActiveTarget({ kind: 'page', pageId: p.id })}>
+                    <span>Page {p.page_number}</span>
+                    <small>{p.status}</small>
+                  </button>
+                ))}
+              </div>
+            </section>
+          ) : null}
+
+          {activeRailPanel === 'content' ? (
+            <ChatPane
+              pageNumber={currentPage?.page_number || nextPageNumber}
+              draft={draft}
+              setDraft={setDraft}
+              busy={busy || layoutOptionsBusy}
+              currentPage={currentPage}
+              onSaveDraft={saveDraft}
+              onGenerate={generatePage}
+              onApprove={approvePage}
+              onNextPage={() => void createNextPage()}
+              onGenerateLayoutOptions={() => void generateLayoutOptions()}
+              onViewLayoutOptions={() => void viewLayoutOptions()}
+              hasExistingLayoutOptions={hasSavedLayoutOptions || Boolean(currentPage?.selected_layout_option_id)}
+              forcedTab="content"
+            />
+          ) : null}
+
+          {activeRailPanel === 'layout' ? (
+            <ChatPane
+              pageNumber={currentPage?.page_number || nextPageNumber}
+              draft={draft}
+              setDraft={setDraft}
+              busy={busy || layoutOptionsBusy}
+              currentPage={currentPage}
+              onSaveDraft={saveDraft}
+              onGenerate={generatePage}
+              onApprove={approvePage}
+              onNextPage={() => void createNextPage()}
+              onGenerateLayoutOptions={() => void generateLayoutOptions()}
+              onViewLayoutOptions={() => void viewLayoutOptions()}
+              hasExistingLayoutOptions={hasSavedLayoutOptions || Boolean(currentPage?.selected_layout_option_id)}
+              forcedTab="layout"
+            />
+          ) : null}
+
+          {activeRailPanel === 'images' ? (
+            <section className="glass-card rail-panel">
+              <h3>Image controls</h3>
+              <label className="file-input">
+                <span>Upload page image</span>
+                <div className="file-input-dropzone">
+                  <p>Drop image here or choose file</p>
+                  <input type="file" accept="image/*" onChange={(event) => setDraft({ ...draft, imageFile: event.target.files?.[0] ?? null })} />
+                </div>
+                {draft.imageFile ? <span className="file-chip">{draft.imageFile.name}</span> : <span className="muted">No image selected</span>}
+              </label>
+              <div className="chat-actions">
+                <button type="button" className="ghost-button" onClick={onBack}>Back to books</button>
+                <button type="button" className="premium-button" onClick={() => void generatePage()} disabled={busy}>Generate with image</button>
+              </div>
+            </section>
+          ) : null}
+
           {expertMode ? <QualityReportPanel report={qualityReport || undefined} warnings={warnings} /> : null}
         </div>
         <BookPreviewPane book={book} pages={sortedPages} activeTarget={activeTarget} onSelectCover={() => setActiveTarget({ kind: 'cover' })} onSelectPage={(id) => setActiveTarget({ kind: 'page', pageId: id })} onCreateNextPage={() => void createNextPage()} />

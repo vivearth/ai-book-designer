@@ -67,6 +67,14 @@ export function LandingScreen({ books, onContinue, onStartNew }: { books: Book[]
         )}
       </article>
 
+
+      <div className="landing-art-preview glass-card" aria-hidden="true">
+        <div className="landing-art-preview__sheet">
+          <h4>The Future of Work</h4>
+          <p>Live visual preview of your designed pages.</p>
+        </div>
+      </div>
+
       <footer className="landing-feature-chips">
         <span>✦ AI-powered layouts</span>
         <span>◌ Beautiful typesetting</span>
