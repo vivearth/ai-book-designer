@@ -3,16 +3,17 @@ import { BookCover } from './BookCover'
 import { PagePreview } from './PagePreview'
 import { PageNavigator } from './PageNavigator'
 
-export function BookPreviewPane({ book, pages, activePageId, showCover, onSelectCover, onSelectPage, onCreateNextPage }: {
+type ActiveTarget = { kind: 'cover' } | { kind: 'page'; pageId: string } | { kind: 'new-page' }
+
+export function BookPreviewPane({ book, pages, activeTarget, onSelectCover, onSelectPage, onCreateNextPage }: {
   book: Book
   pages: Page[]
-  activePageId: string | null
-  showCover: boolean
+  activeTarget: ActiveTarget
   onSelectCover: () => void
   onSelectPage: (pageId: string) => void
   onCreateNextPage: () => void
 }) {
-  const activePage = pages.find((page) => page.id === activePageId) ?? null
+  const activePage = activeTarget.kind === 'page' ? pages.find((page) => page.id === activeTarget.pageId) ?? null : null
 
   return (
     <section className="preview-pane">
@@ -21,12 +22,12 @@ export function BookPreviewPane({ book, pages, activePageId, showCover, onSelect
           <p className="kicker">Book preview</p>
           <h2>{book.title}</h2>
         </div>
-        <PageNavigator pages={pages} activePageId={activePageId} isCoverActive={showCover} onSelectCover={onSelectCover} onSelectPage={onSelectPage} onCreateNext={onCreateNextPage} />
+        <PageNavigator pages={pages} activeTarget={activeTarget} onSelectCover={onSelectCover} onSelectPage={onSelectPage} onCreateNext={onCreateNextPage} />
       </div>
       <div className="book-stage">
         <div className="book-stage__shadow" />
         <div className="book-sheet">
-          {showCover || !activePage ? <BookCover book={book} /> : <PagePreview book={book} page={activePage} />}
+          {activeTarget.kind === 'cover' ? <BookCover book={book} /> : <PagePreview book={book} page={activePage} />}
         </div>
       </div>
     </section>

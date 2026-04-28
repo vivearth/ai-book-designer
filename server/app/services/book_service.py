@@ -32,7 +32,7 @@ class BookService:
     def create_book(self, db: Session, payload: BookCreate) -> Book:
         data = payload.model_dump()
         config = get_book_type_config(data.get("book_type_id"))
-        data["creation_mode"] = data.get("creation_mode") or config.default_mode
+        data["creation_mode"] = data.get("creation_mode") or config.recommended_mode
         data["tone"] = data.get("tone") or config.default_tone
         if not data.get("layout_template"):
             data["layout_template"] = config.default_format
@@ -64,7 +64,7 @@ class BookService:
         if "book_type_id" in updates and updates["book_type_id"]:
             config = get_book_type_config(updates["book_type_id"])
             updates.setdefault("tone", config.default_tone)
-            updates.setdefault("creation_mode", config.default_mode)
+            updates.setdefault("creation_mode", config.recommended_mode)
         if "format_settings" in updates:
             preferred = updates.get("layout_template") or book.layout_template
             updates["format_settings"] = self._normalize_format_settings(updates.get("format_settings"), preferred_layout=preferred)

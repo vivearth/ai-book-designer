@@ -52,6 +52,104 @@ PYTHONPATH=server pytest server/tests -q
 
 A **Skill** is a reusable capability. Output varies by project context (sources, direction, brand profile, format profile), not by one-off UI prompt hacks.
 
+## Local model routing and quality (Ollama)
+
+Generation quality depends heavily on local model choice. The app supports per-skill model routing:
+
+- `FICTION_LLM_MODEL` → fiction pages
+- `MARKETING_LLM_MODEL` → marketing pages
+- `FINANCE_LLM_MODEL` → finance pages
+- `GENERAL_LLM_MODEL` → general/educational pages
+- `QUALITY_LLM_MODEL` → quality tasks (future-safe route)
+- fallback order: skill model → `DEFAULT_LLM_MODEL` → `OLLAMA_MODEL`
+
+Recommended local models:
+
+- CPU-only / 8GB RAM: `qwen2.5:3b-instruct` or `llama3.2:3b`
+- Better quality with more RAM/CPU: `qwen3:8b`
+- Large models only if hardware allows: `qwen2.5:14b-instruct`
+
+The app uses **two-pass generation** (plan beats, then prose) for stronger page-level quality without paid APIs or fine-tuning. For slower machines, set `LLM_FAST_MODE=true` to run one-pass generation.
+
+### CPU-friendly Ollama settings
+
+- `OLLAMA_TIMEOUT_SECONDS=300`
+- `OLLAMA_NUM_CTX=2048`
+- `OLLAMA_NUM_PREDICT=220-320`
+- `LLM_FAST_MODE=true` (recommended on small GPUs/CPU-only)
+- `LLM_TWO_PASS_ENABLED=false` (recommended for faster demo runs)
+- Nginx API proxy timeout is set to `300s` in `client/app-ui/nginx.conf`
+
+### Troubleshooting: Ollama 500 after 2 minutes
+
+Symptom in Ollama logs:
+
+- `POST /api/generate 500 2m0s`
+
+Why this happens:
+
+- Model may be loaded, but CPU-only generation exceeded the request timeout.
+- `qwen3:8b` can be slow on CPU-only Docker with ~8GB RAM.
+- Two-pass generation may call the model multiple times per page.
+
+How to fix:
+
+1. Use a smaller model (`qwen2.5:3b-instruct` / `llama3.2:3b`).
+2. Increase `OLLAMA_TIMEOUT_SECONDS`.
+3. Set `LLM_FAST_MODE=true`.
+4. Reduce `OLLAMA_NUM_CTX` and/or `OLLAMA_NUM_PREDICT`.
+5. Set `OLLAMA_STREAM=true` for long-running generation.
+6. Run Ollama on host/GPU if available.
+7. Ensure frontend proxy timeout is long enough (`300s` in this repo).
+
+Useful commands:
+
+```bash
+docker exec -it book_designer_ollama ollama list
+docker exec -it book_designer_ollama ollama pull qwen2.5:3b-instruct
+docker compose --profile llm up --build
+```
+
+### Ollama warmup for first-request latency
+
+When running with `--profile llm`, compose starts an `ollama-warmup` service that:
+
+1. waits for `/api/tags`
+2. sends a tiny warmup `/api/generate` request
+3. keeps model alive for demo usage
+
+You can also run warmup manually:
+
+```bash
+./scripts/warmup_ollama.sh
+```
+
+Environment variables supported:
+
+- `OLLAMA_BASE_URL`
+- `OLLAMA_MODEL`
+- `OLLAMA_WARMUP_TIMEOUT_SECONDS`
+- `OLLAMA_KEEP_ALIVE`
+
+### Future improvement (TODO)
+
+Long-running generation should eventually move to async jobs (`POST /generate-jobs`, `GET /generate-jobs/{id}`) to avoid request/timeout coupling entirely.
+
+## Zero-cost quality improvement path
+
+1. Choose a stronger local model.
+2. Use skill-specific prompt contracts.
+3. Use source retrieval for professional books.
+4. Keep quality checks enabled (repetition, leakage, domain/source relevance).
+5. Collect approved pages as future training data.
+
+### Optional future LoRA path (not implemented in this branch)
+
+Once enough pages are approved, export training pairs:
+
+- Input: book type + page goal + source chunks + target words
+- Output: approved final page
+
 ## Known limitations
 
 - No auth/RBAC yet.

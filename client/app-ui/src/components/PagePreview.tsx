@@ -20,6 +20,9 @@ export function PagePreview({ book, page }: { book: Book; page: Page | null }) {
   const composition = (page?.layout_json?.composition as string | undefined) || (page?.images?.length ? 'text-with-image' : 'text_only')
   const image = page?.images?.[0]
   const text = page?.final_text || page?.generated_text || page?.user_text || 'Your next page will appear here as soon as you start shaping it.'
+  const headline = typeof page?.generation_metadata?.headline === 'string' && page.generation_metadata.headline.trim()
+    ? String(page.generation_metadata.headline).trim()
+    : null
   const showImageArea = composition !== 'text_only'
   const capacity = estimatePageCapacity(book, page)
   const words = text.trim().split(/\s+/)
@@ -33,7 +36,7 @@ export function PagePreview({ book, page }: { book: Book; page: Page | null }) {
         image ? <img src={resolveUploadUrl(image.stored_filename)} alt={image.original_filename} className="page-preview__image" /> : <InternalImagePlaceholder layoutId={layoutId} />
       ) : null}
       <div className="page-preview__body">
-        {layoutId === 'modern-editorial' ? <div className="page-preview__headline">Designed with editorial hierarchy in mind</div> : null}
+        {layoutId === 'modern-editorial' ? <div className="page-preview__headline">{headline || `Page ${page?.page_number || ''}`.trim()}</div> : null}
         {layoutId === 'classic-novel' ? <div className="page-preview__chapter-label">Chapter draft</div> : null}
         <div className="page-content-frame">
           <article className="page-text-flow">{visibleText}</article>

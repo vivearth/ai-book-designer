@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import re
+
 from fastapi import HTTPException, UploadFile
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
@@ -119,7 +121,7 @@ class PageService:
             {
                 "instruction": request.instruction,
                 "target_words": target_words,
-                "page_direction": page.user_prompt or request.instruction,
+                "page_direction": page.user_prompt or "",
                 "rough_text": page.user_text or "",
             },
             ctx,
@@ -127,10 +129,13 @@ class PageService:
 
         content = skill_result.output
         body = content.get("body_text") or ""
+        if request.instruction and any(token in body.lower() for token in ["shape this into a polished page", "preserving continuity", "return only"]):
+            warnings.append("Guidance leakage was detected in generated content and was cleaned.")
+            for marker in ["Shape this into a polished page", "preserving continuity", "Return only"]:
+                body = re.sub(re.escape(marker), "", body, flags=re.IGNORECASE)
         body, sanitize_notes = self.llm_engine.sanitize_generated_page_text(body)
         deduped_body, repetition_notes = self.text_quality_engine.remove_repeated_sentences(body)
-        minimum_quality_words = max(120, int(target_words * 0.45))
-        body = deduped_body if len(deduped_body.split()) >= minimum_quality_words else body
+        body = deduped_body or body
         warnings.extend(skill_result.warnings)
         warnings.extend(sanitize_notes)
         warnings.extend(repetition_notes)
@@ -173,10 +178,54 @@ class PageService:
                 "generated_text": current_text,
                 "target_words": target_words,
                 "expected_content_direction": (project.content_direction if project else (book.genre or "")),
+                "user_prompt": page.user_prompt or "",
+                "user_text": page.user_text or "",
             },
             ctx,
         )
         quality_report = quality_result.output
+        severe_flags = quality_report.get("flags", {})
+        should_retry = any(
+            severe_flags.get(flag)
+            for flag in ["prompt_leakage", "off_domain", "unsupported_claims", "repetition"]
+        )
+        if self.llm_engine.settings.llm_fast_mode:
+            should_retry = False
+        if should_retry and self.llm_engine.settings.model_provider.lower().strip() != "mock":
+            retry_result = await skill.run(
+                {
+                    "instruction": request.instruction,
+                    "target_words": target_words,
+                    "page_direction": page.user_prompt or "",
+                    "rough_text": page.user_text or "",
+                    "strict_quality": True,
+                },
+                ctx,
+            )
+            retry_body = retry_result.output.get("body_text") or ""
+            retry_body, retry_sanitize_notes = self.llm_engine.sanitize_generated_page_text(retry_body)
+            retry_body, retry_repetition_notes = self.text_quality_engine.remove_repeated_sentences(retry_body)
+            retry_current_text, retry_overflow_text = self.pagination_engine.split_text_for_page(retry_body, target_words)
+            retry_quality = await quality_skill.run(
+                {
+                    "generated_text": retry_current_text,
+                    "target_words": target_words,
+                    "expected_content_direction": (project.content_direction if project else (book.genre or "")),
+                    "user_prompt": page.user_prompt or "",
+                    "user_text": page.user_text or "",
+                },
+                ctx,
+            )
+            if retry_quality.output.get("score", 0) >= quality_report.get("score", 0):
+                content = retry_result.output
+                current_text = retry_current_text
+                overflow_text = retry_overflow_text
+                skill_result.notes.extend(retry_result.notes)
+                quality_report = retry_quality.output
+                warnings.extend(retry_result.warnings)
+                warnings.extend(retry_sanitize_notes)
+                warnings.extend(retry_repetition_notes)
+                warnings.append("One strict-quality regeneration pass was used.")
 
         page.generated_text = current_text
         page.status = "generated"
@@ -186,7 +235,12 @@ class PageService:
             "skill_id": skill_id,
             "source_refs": source_refs,
             "quality_report": quality_report,
+            "headline": content.get("headline"),
+            "pull_quote": content.get("pull_quote"),
             "layout_intent": content.get("layout_intent"),
+            "seed_reason": content.get("seed_reason"),
+            "prompt_length_chars": (content.get("prompt_meta") or {}).get("prompt_length_chars"),
+            "prompt_truncated": (content.get("prompt_meta") or {}).get("prompt_truncated"),
             "target_words": target_words,
             "page_capacity_hint": request.page_capacity_hint.model_dump() if request.page_capacity_hint else None,
             "word_budget_reason": word_budget_reason,
