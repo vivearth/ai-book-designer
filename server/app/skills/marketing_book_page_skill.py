@@ -25,7 +25,7 @@ class MarketingBookPageSkill(Skill):
         source_chunks = context.source_chunks or []
         source_text = " ".join(chunk.text for chunk in source_chunks[:3])
 
-        body, notes, plan = await maybe_run_two_pass_page_generation(
+        body, notes, plan, prompt_meta = await maybe_run_two_pass_page_generation(
             context=context,
             skill_kind="marketing",
             title=context.book.title if context.book else "Untitled",
@@ -66,6 +66,7 @@ class MarketingBookPageSkill(Skill):
                 "quality_notes": ["Avoid unsupported claims and keep statements evidence-led."],
                 "plan_summary": plan,
                 "seed_reason": seed_reason,
+                "prompt_meta": prompt_meta,
             },
             notes=notes,
             warnings=warnings,

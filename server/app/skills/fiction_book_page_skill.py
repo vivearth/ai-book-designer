@@ -33,7 +33,7 @@ class FictionBookPageSkill(Skill):
         if page and page.layout_json:
             layout = f"Composition: {page.layout_json.get('composition', 'text_only')}"
 
-        text, notes, plan = await maybe_run_two_pass_page_generation(
+        text, notes, plan, prompt_meta = await maybe_run_two_pass_page_generation(
             context=context,
             skill_kind="fiction",
             title=book.title if book else "Untitled",
@@ -69,6 +69,7 @@ class FictionBookPageSkill(Skill):
                 "quality_notes": ["Narrative scene generated from two-pass fiction flow."],
                 "plan_summary": plan,
                 "seed_reason": seed_reason,
+                "prompt_meta": prompt_meta,
             },
             notes=notes,
         )

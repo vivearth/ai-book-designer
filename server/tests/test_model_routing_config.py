@@ -15,7 +15,7 @@ def test_model_routing_config(monkeypatch):
     engine = LLMEngine()
     seen = {}
 
-    async def fake_generate(prompt: str, *, temperature: float, model: str):
+    async def fake_generate(prompt: str, *, temperature: float, model: str, purpose: str | None = None):
         seen['model'] = model
         return 'ok output'
 

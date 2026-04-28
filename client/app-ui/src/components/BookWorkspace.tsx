@@ -163,7 +163,9 @@ export function BookWorkspace({ book, pages, setPages, refreshPages, onBack, onS
         </div>
       </header>
       {error ? <div className="error-banner">{error}</div> : null}
+      {busy ? <div className="notice-pill">Generating with local model. This may take a while on CPU.</div> : null}
       {overflowNotice ? <div className="warning-banner">{overflowNotice}</div> : null}
+      {warnings.find((w) => /fallback|timeout|ollama/i.test(w)) ? <div className="warning-banner">{warnings.find((w) => /fallback|timeout|ollama/i.test(w))}</div> : null}
 
       <div className="workspace-grid">
         <div>

@@ -65,12 +65,48 @@ Generation quality depends heavily on local model choice. The app supports per-s
 
 Recommended local models:
 
-- `qwen2.5:14b-instruct` (strong default for zero-cost local writing)
-- `qwen2.5:32b-instruct` (if hardware allows)
-- `mistral-small` (if available in your local setup)
-- `llama3.1:8b` (baseline fallback only)
+- CPU-only / 8GB RAM: `qwen2.5:3b-instruct` or `llama3.2:3b`
+- Better quality with more RAM/CPU: `qwen3:8b`
+- Large models only if hardware allows: `qwen2.5:14b-instruct`
 
-The app uses **two-pass generation** (plan beats, then prose) for stronger page-level quality without paid APIs or fine-tuning.
+The app uses **two-pass generation** (plan beats, then prose) for stronger page-level quality without paid APIs or fine-tuning. For slower machines, set `LLM_FAST_MODE=true` to run one-pass generation.
+
+### CPU-friendly Ollama settings
+
+- `OLLAMA_TIMEOUT_SECONDS=300`
+- `OLLAMA_NUM_CTX=2048`
+- `OLLAMA_NUM_PREDICT=220-320`
+- `LLM_FAST_MODE=true` (optional for slower CPU-only runs)
+- `LLM_TWO_PASS_ENABLED=false` (optional for faster generation)
+
+### Troubleshooting: Ollama 500 after 2 minutes
+
+Symptom in Ollama logs:
+
+- `POST /api/generate 500 2m0s`
+
+Why this happens:
+
+- Model may be loaded, but CPU-only generation exceeded the request timeout.
+- `qwen3:8b` can be slow on CPU-only Docker with ~8GB RAM.
+- Two-pass generation may call the model multiple times per page.
+
+How to fix:
+
+1. Use a smaller model (`qwen2.5:3b-instruct` / `llama3.2:3b`).
+2. Increase `OLLAMA_TIMEOUT_SECONDS`.
+3. Set `LLM_FAST_MODE=true`.
+4. Reduce `OLLAMA_NUM_CTX` and/or `OLLAMA_NUM_PREDICT`.
+5. Set `OLLAMA_STREAM=true` for long-running generation.
+6. Run Ollama on host/GPU if available.
+
+Useful commands:
+
+```bash
+docker exec -it book_designer_ollama ollama list
+docker exec -it book_designer_ollama ollama pull qwen2.5:3b-instruct
+docker compose --profile llm up --build
+```
 
 ## Zero-cost quality improvement path
 

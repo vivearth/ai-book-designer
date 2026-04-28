@@ -30,6 +30,12 @@ def _extract_terms(text: str, limit: int = 8) -> list[str]:
     return out
 
 
+def truncate_for_prompt(text: str, max_chars: int) -> tuple[str, bool]:
+    if len(text) <= max_chars:
+        return text, False
+    return f"{text[: max_chars - 3]}...", True
+
+
 async def build_page_plan(
     *,
     context: SkillContext,
@@ -50,6 +56,10 @@ async def build_page_plan(
     guidance_instruction: str = "",
     strict_quality: bool = False,
 ) -> str:
+    topic, _ = truncate_for_prompt(topic or "", 400)
+    previous_summary, _ = truncate_for_prompt(previous_summary or "", 800)
+    rough_notes, _ = truncate_for_prompt(rough_notes or "", 1000)
+    source_excerpts, _ = truncate_for_prompt(source_excerpts or "", 1500)
     min_words, max_words = _word_budget(target_words)
     prompt = f"""
 Build a compact page plan with 3-6 beats only (no prose paragraphs).
@@ -98,6 +108,9 @@ async def write_page_from_plan(
     guidance_instruction: str = "",
     strict_quality: bool = False,
 ) -> tuple[str, list[str]]:
+    topic, _ = truncate_for_prompt(topic or "", 400)
+    rough_notes, _ = truncate_for_prompt(rough_notes or "", 1000)
+    source_excerpts, _ = truncate_for_prompt(source_excerpts or "", 1500)
     min_words, max_words = _word_budget(target_words)
     prompt = f"""
 Write final reader-facing page prose using the page plan.
@@ -225,19 +238,44 @@ async def maybe_run_two_pass_page_generation(
     few_shot: str = "",
     guidance_instruction: str = "",
     strict_quality: bool = False,
-) -> tuple[str, list[str], str]:
+) -> tuple[str, list[str], str, dict[str, Any]]:
+    previous_summary, was_prev_truncated = truncate_for_prompt(previous_summary or "", 800)
+    rough_notes, was_rough_truncated = truncate_for_prompt(rough_notes or "", 1000)
+    source_excerpts, was_source_truncated = truncate_for_prompt(source_excerpts or "", 1500)
+    prompt_meta = {
+        "prompt_length_chars": len(previous_summary) + len(rough_notes) + len(source_excerpts) + len(topic or "") + len(direction or ""),
+        "prompt_truncated": bool(was_prev_truncated or was_rough_truncated or was_source_truncated),
+    }
     if context.llm_engine is None:
         provider = "mock"
     else:
         provider = context.llm_engine.settings.model_provider.lower().strip()
+    if context.llm_engine and (context.llm_engine.settings.llm_fast_mode or not context.llm_engine.settings.llm_two_pass_enabled):
+        prose, notes = await write_page_from_plan(
+            context=context,
+            skill_kind=skill_kind,
+            title=title,
+            topic=topic,
+            direction=direction,
+            rough_notes=rough_notes,
+            source_excerpts=source_excerpts,
+            target_words=target_words,
+            composition=composition,
+            plan_text="Use the page direction and available context directly.",
+            domain_instructions=domain_instructions,
+            few_shot="",
+            guidance_instruction=guidance_instruction,
+            strict_quality=strict_quality,
+        )
+        return prose, notes + ["llm_mode=fast_one_pass"], "fast_mode_no_plan", prompt_meta
     if provider == "mock":
         if skill_kind == "fiction":
-            return _mock_fiction(direction, rough_notes, target_words), ["provider=mock", "two_pass=mock"], "mock_plan"
+            return _mock_fiction(direction, rough_notes, target_words), ["provider=mock", "two_pass=mock"], "mock_plan", prompt_meta
         if skill_kind == "marketing":
-            return _mock_marketing(direction, rough_notes, source_excerpts, target_words), ["provider=mock", "two_pass=mock"], "mock_plan"
+            return _mock_marketing(direction, rough_notes, source_excerpts, target_words), ["provider=mock", "two_pass=mock"], "mock_plan", prompt_meta
         if skill_kind == "finance":
-            return _mock_finance(direction, rough_notes, source_excerpts, target_words), ["provider=mock", "two_pass=mock"], "mock_plan"
-        return _mock_general(direction, rough_notes, topic, target_words), ["provider=mock", "two_pass=mock"], "mock_plan"
+            return _mock_finance(direction, rough_notes, source_excerpts, target_words), ["provider=mock", "two_pass=mock"], "mock_plan", prompt_meta
+        return _mock_general(direction, rough_notes, topic, target_words), ["provider=mock", "two_pass=mock"], "mock_plan", prompt_meta
 
     plan = await build_page_plan(
         context=context,
@@ -281,7 +319,7 @@ async def maybe_run_two_pass_page_generation(
             cleaned = re.sub(re.escape(marker), "", cleaned, flags=re.IGNORECASE)
         prose = re.sub(r"\s+", " ", cleaned).strip()
         notes.append("Guidance leakage detected and cleaned from generated prose.")
-    return prose, notes, plan
+    return prose, notes, plan, prompt_meta
 
 
 def derive_page_seed(

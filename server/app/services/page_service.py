@@ -237,6 +237,8 @@ class PageService:
             "pull_quote": content.get("pull_quote"),
             "layout_intent": content.get("layout_intent"),
             "seed_reason": content.get("seed_reason"),
+            "prompt_length_chars": (content.get("prompt_meta") or {}).get("prompt_length_chars"),
+            "prompt_truncated": (content.get("prompt_meta") or {}).get("prompt_truncated"),
             "target_words": target_words,
             "page_capacity_hint": request.page_capacity_hint.model_dump() if request.page_capacity_hint else None,
             "word_budget_reason": word_budget_reason,

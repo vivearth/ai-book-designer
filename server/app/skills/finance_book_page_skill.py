@@ -25,7 +25,7 @@ class FinanceBookPageSkill(Skill):
         source_chunks = context.source_chunks or []
         source_text = " ".join(c.text for c in source_chunks[:3])
 
-        text, notes, plan = await maybe_run_two_pass_page_generation(
+        text, notes, plan, prompt_meta = await maybe_run_two_pass_page_generation(
             context=context,
             skill_kind="finance",
             title=context.book.title if context.book else "Untitled",
@@ -67,6 +67,7 @@ class FinanceBookPageSkill(Skill):
                 "quality_notes": ["No fabricated percentages, returns, or investment promises."],
                 "plan_summary": plan,
                 "seed_reason": seed_reason,
+                "prompt_meta": prompt_meta,
             },
             notes=notes,
             warnings=warnings,

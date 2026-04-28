@@ -5,7 +5,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import Response
 from sqlalchemy import inspect, text
 
-from app.api import books, exports, pages, projects, sources, uploads
+from app.api import books, exports, llm, pages, projects, sources, uploads
 from app.core.config import get_settings
 from app.core.database import Base, engine
 from app.models import entities  # noqa: F401
@@ -99,3 +99,4 @@ app.include_router(exports.router, prefix="/api")
 app.include_router(uploads.router, prefix="/api")
 app.include_router(projects.router, prefix="/api")
 app.include_router(sources.router, prefix="/api")
+app.include_router(llm.router, prefix="/api")
