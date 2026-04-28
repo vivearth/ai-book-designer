@@ -177,3 +177,18 @@ Once enough pages are approved, export training pairs:
 - Cover button shows cover even when pages exist.
 - Next page creates and selects page 2/page 3 correctly.
 - User-selected format is preserved and not overwritten at submit time.
+
+## Typesetting-first MVP flow
+
+The studio now supports both content generation and PRD-native typesetting selection:
+
+- You can still generate page text with existing skills in Classical or Expert mode.
+- You can also paste/provide page-level text + images and use **Generate Layout Options** without rewriting text.
+- For each page, the app generates **two layout options** (Option A / Option B), shows them side-by-side, and lets you select one.
+- Selecting an option copies that option into the page's active `layout_json`, which is then used by preview and PDF export.
+
+Current MVP constraints:
+
+- No drag/drop freeform editing yet.
+- Layout options are deterministic structured variants, with optional AI-assisted rationale when available.
+- Global style consistency across all pages can be improved further in future iterations.

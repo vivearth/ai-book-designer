@@ -50,10 +50,38 @@ def ensure_dev_columns() -> None:
                 connection.execute(text("UPDATE books SET creation_mode = COALESCE(creation_mode, 'classical')"))
     if "pages" in tables:
         existing_pages = {column["name"] for column in inspector.get_columns("pages")}
+        statements = []
         if "generation_metadata" not in existing_pages:
+            statements.append("ALTER TABLE pages ADD COLUMN generation_metadata JSON")
+        if "selected_layout_option_id" not in existing_pages:
+            statements.append("ALTER TABLE pages ADD COLUMN selected_layout_option_id VARCHAR(80)")
+        if statements:
             with engine.begin() as connection:
-                connection.execute(text("ALTER TABLE pages ADD COLUMN generation_metadata JSON"))
+                for statement in statements:
+                    connection.execute(text(statement))
                 connection.execute(text("UPDATE pages SET generation_metadata = '{}' WHERE generation_metadata IS NULL"))
+
+    if "page_layout_options" not in tables:
+        with engine.begin() as connection:
+            connection.execute(
+                text(
+                    """
+                    CREATE TABLE IF NOT EXISTS page_layout_options (
+                        id VARCHAR(80) PRIMARY KEY,
+                        page_id VARCHAR(80) NOT NULL,
+                        option_index INTEGER NOT NULL,
+                        label VARCHAR(80) NOT NULL,
+                        layout_json JSON,
+                        preview_metadata JSON,
+                        rationale TEXT,
+                        created_at DATETIME,
+                        selected_at DATETIME,
+                        CONSTRAINT uq_page_layout_option_index UNIQUE (page_id, option_index),
+                        FOREIGN KEY(page_id) REFERENCES pages(id) ON DELETE CASCADE
+                    )
+                    """
+                )
+            )
 
 
 @app.on_event("startup")

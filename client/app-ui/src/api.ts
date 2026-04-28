@@ -1,4 +1,4 @@
-import type { Book, DraftGenerationResponse, GenerationResponse, Page, PageImage, Project, SourceAsset, SourceChunk } from './types'
+import type { Book, DraftGenerationResponse, GenerationResponse, LayoutOptionsResponse, Page, PageImage, Project, SourceAsset, SourceChunk } from './types'
 
 const API_BASE = '/api'
 
@@ -38,6 +38,10 @@ export const api = {
   generatePage: (pageId: string, payload: Record<string, unknown>) =>
     request<GenerationResponse>(`/pages/${pageId}/generate`, { method: 'POST', body: JSON.stringify(payload) }),
   approvePage: (pageId: string) => request<Page>(`/pages/${pageId}/approve`, { method: 'POST' }),
+  generateLayoutOptions: (pageId: string, payload: { preserve_text?: boolean; option_count?: number; page_capacity_hint?: Record<string, unknown>; instructions?: string }) =>
+    request<LayoutOptionsResponse>(`/pages/${pageId}/layout-options`, { method: 'POST', body: JSON.stringify(payload) }),
+  listLayoutOptions: (pageId: string) => request<LayoutOptionsResponse>(`/pages/${pageId}/layout-options`),
+  selectLayoutOption: (pageId: string, optionId: string) => request<Page>(`/pages/${pageId}/layout-options/${optionId}/select`, { method: 'POST' }),
   uploadImage: (pageId: string, file: File, caption?: string) => {
     const body = new FormData(); body.append('file', file); if (caption) body.append('caption', caption)
     return request<PageImage>(`/pages/${pageId}/images`, { method: 'POST', body })

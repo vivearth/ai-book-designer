@@ -15,9 +15,10 @@ function InternalImagePlaceholder({ layoutId }: { layoutId: string }) {
   )
 }
 
-export function PagePreview({ book, page }: { book: Book; page: Page | null }) {
+export function PagePreview({ book, page, layoutOverride, mini = false }: { book: Book; page: Page | null; layoutOverride?: Record<string, unknown> | null; mini?: boolean }) {
   const layoutId = book.format_settings?.selected_layout_id || book.layout_template
-  const composition = (page?.layout_json?.composition as string | undefined) || (page?.images?.length ? 'text-with-image' : 'text_only')
+  const activeLayout = layoutOverride || page?.layout_json || {}
+  const composition = (activeLayout?.composition as string | undefined) || (page?.images?.length ? 'text-with-image' : 'text_only')
   const image = page?.images?.[0]
   const text = page?.final_text || page?.generated_text || page?.user_text || 'Your next page will appear here as soon as you start shaping it.'
   const headline = typeof page?.generation_metadata?.headline === 'string' && page.generation_metadata.headline.trim()
@@ -30,7 +31,7 @@ export function PagePreview({ book, page }: { book: Book; page: Page | null }) {
   const visibleText = truncated ? `${words.slice(0, capacity.estimated_words).join(' ')}…` : text
 
   return (
-    <div className={`page-preview page-preview--${layoutId} page-preview--${composition}`}>
+    <div className={`page-preview page-preview--${layoutId} page-preview--${composition} ${mini ? 'page-preview--mini' : ''}`}>
       <div className="page-preview__meta">{page ? `Page ${page.page_number}` : 'Preview page'}</div>
       {showImageArea ? (
         image ? <img src={resolveUploadUrl(image.stored_filename)} alt={image.original_filename} className="page-preview__image" /> : <InternalImagePlaceholder layoutId={layoutId} />
