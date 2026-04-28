@@ -291,6 +291,7 @@ export function BookWorkspace({ book, pages, setPages, refreshPages, onBack, onS
               onViewLayoutOptions={() => void viewLayoutOptions()}
               hasExistingLayoutOptions={hasSavedLayoutOptions || Boolean(currentPage?.selected_layout_option_id)}
               forcedTab="content"
+              onAddImageClick={() => setActiveRailPanel('images')}
             />
           ) : null}
 
@@ -309,12 +310,14 @@ export function BookWorkspace({ book, pages, setPages, refreshPages, onBack, onS
               onViewLayoutOptions={() => void viewLayoutOptions()}
               hasExistingLayoutOptions={hasSavedLayoutOptions || Boolean(currentPage?.selected_layout_option_id)}
               forcedTab="layout"
+              onAddImageClick={() => setActiveRailPanel('images')}
             />
           ) : null}
 
           {activeRailPanel === 'images' ? (
             <section className="glass-card rail-panel">
               <h3>Image controls</h3>
+              <p className="muted">Choose a page image, then save it or generate immediately with it.</p>
               <label className="file-input">
                 <span>Upload page image</span>
                 <div className="file-input-dropzone">
@@ -324,7 +327,8 @@ export function BookWorkspace({ book, pages, setPages, refreshPages, onBack, onS
                 {draft.imageFile ? <span className="file-chip">{draft.imageFile.name}</span> : <span className="muted">No image selected</span>}
               </label>
               <div className="chat-actions">
-                <button type="button" className="ghost-button" onClick={onBack}>Back to books</button>
+                <button type="button" className="ghost-button" onClick={() => setActiveRailPanel('content')}>Back to content</button>
+                <button type="button" className="ghost-button" onClick={() => void saveDraft()} disabled={busy}>Save image to page</button>
                 <button type="button" className="premium-button" onClick={() => void generatePage()} disabled={busy}>Generate with image</button>
               </div>
             </section>

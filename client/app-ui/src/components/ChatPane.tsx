@@ -24,6 +24,7 @@ export function ChatPane({
   onViewLayoutOptions,
   hasExistingLayoutOptions,
   forcedTab,
+  onAddImageClick,
 }: {
   pageNumber: number
   draft: Draft
@@ -38,6 +39,7 @@ export function ChatPane({
   onViewLayoutOptions: () => void
   hasExistingLayoutOptions: boolean
   forcedTab?: EditorTab
+  onAddImageClick?: () => void
 }) {
   const [tab, setTab] = useState<EditorTab>('content')
   useEffect(() => {
@@ -73,7 +75,9 @@ export function ChatPane({
             Assistant guidance
             <textarea value={draft.instruction} onChange={(event) => setDraft({ ...draft, instruction: event.target.value })} placeholder="Polish prose, preserve continuity, keep tone aligned." />
           </label>
+          <p className="muted">Generation can combine your text direction and a reference image.</p>
           <div className="chat-actions">
+            <button type="button" className="ghost-button" onClick={() => onAddImageClick?.()}>Add image</button>
             <button type="button" className="ghost-button" onClick={onSaveDraft} disabled={busy}>Save draft</button>
             <button type="button" className="premium-button" onClick={onGenerate} disabled={busy}>Generate page</button>
             <button type="button" className="secondary-button" onClick={onApprove} disabled={busy || !currentPage}>Approve</button>
