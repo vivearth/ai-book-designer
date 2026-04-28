@@ -76,8 +76,9 @@ The app uses **two-pass generation** (plan beats, then prose) for stronger page-
 - `OLLAMA_TIMEOUT_SECONDS=300`
 - `OLLAMA_NUM_CTX=2048`
 - `OLLAMA_NUM_PREDICT=220-320`
-- `LLM_FAST_MODE=true` (optional for slower CPU-only runs)
-- `LLM_TWO_PASS_ENABLED=false` (optional for faster generation)
+- `LLM_FAST_MODE=true` (recommended on small GPUs/CPU-only)
+- `LLM_TWO_PASS_ENABLED=false` (recommended for faster demo runs)
+- Nginx API proxy timeout is set to `300s` in `client/app-ui/nginx.conf`
 
 ### Troubleshooting: Ollama 500 after 2 minutes
 
@@ -99,6 +100,7 @@ How to fix:
 4. Reduce `OLLAMA_NUM_CTX` and/or `OLLAMA_NUM_PREDICT`.
 5. Set `OLLAMA_STREAM=true` for long-running generation.
 6. Run Ollama on host/GPU if available.
+7. Ensure frontend proxy timeout is long enough (`300s` in this repo).
 
 Useful commands:
 
@@ -107,6 +109,31 @@ docker exec -it book_designer_ollama ollama list
 docker exec -it book_designer_ollama ollama pull qwen2.5:3b-instruct
 docker compose --profile llm up --build
 ```
+
+### Ollama warmup for first-request latency
+
+When running with `--profile llm`, compose starts an `ollama-warmup` service that:
+
+1. waits for `/api/tags`
+2. sends a tiny warmup `/api/generate` request
+3. keeps model alive for demo usage
+
+You can also run warmup manually:
+
+```bash
+./scripts/warmup_ollama.sh
+```
+
+Environment variables supported:
+
+- `OLLAMA_BASE_URL`
+- `OLLAMA_MODEL`
+- `OLLAMA_WARMUP_TIMEOUT_SECONDS`
+- `OLLAMA_KEEP_ALIVE`
+
+### Future improvement (TODO)
+
+Long-running generation should eventually move to async jobs (`POST /generate-jobs`, `GET /generate-jobs/{id}`) to avoid request/timeout coupling entirely.
 
 ## Zero-cost quality improvement path
 

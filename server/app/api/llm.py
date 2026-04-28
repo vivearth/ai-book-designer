@@ -11,3 +11,8 @@ engine = LLMEngine()
 @router.get("/status")
 async def llm_status():
     return await engine.get_provider_status()
+
+
+@router.post("/warmup")
+async def llm_warmup():
+    return await engine.warmup_model()

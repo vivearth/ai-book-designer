@@ -88,9 +88,11 @@ class LLMEngine:
             return {
                 "provider": "mock",
                 "base_url": None,
-                "model": self.settings.ollama_model,
+                "configured_model": self.settings.ollama_model,
                 "available": True,
                 "models": [],
+                "configured_model_present": True,
+                "warmup_recommended": False,
                 "recommendations": ["Mock provider active. Switch MODEL_PROVIDER=ollama to use local models."],
             }
 
@@ -118,20 +120,46 @@ class LLMEngine:
             return {
                 "provider": "ollama",
                 "base_url": self.settings.ollama_base_url,
-                "model": self.settings.ollama_model,
+                "configured_model": self.settings.ollama_model,
                 "available": True,
                 "models": models,
+                "configured_model_present": self.settings.ollama_model in models,
+                "warmup_recommended": self.settings.ollama_model in models,
                 "recommendations": recommendations,
             }
         except Exception as exc:  # noqa: BLE001
             return {
                 "provider": "ollama",
                 "base_url": self.settings.ollama_base_url,
-                "model": self.settings.ollama_model,
+                "configured_model": self.settings.ollama_model,
                 "available": False,
                 "models": [],
+                "configured_model_present": False,
+                "warmup_recommended": True,
                 "recommendations": [f"Unable to reach Ollama /api/tags: {exc}"],
             }
+
+    async def warmup_model(self, model: str | None = None) -> dict[str, Any]:
+        target_model = model or self.settings.ollama_model
+        if self.settings.model_provider.lower().strip() == "mock":
+            return {"provider": "mock", "warmed": True, "message": "Mock provider does not require warmup."}
+        prompt = "Warm up the model. Reply with one word: ready"
+        started = time.perf_counter()
+        text = await self._ollama_generate(
+            prompt,
+            temperature=0.0,
+            model=target_model,
+            purpose="quality",
+            num_predict_override=8,
+            num_ctx_override=512,
+        )
+        return {
+            "provider": "ollama",
+            "model": target_model,
+            "warmed": True,
+            "elapsed_ms": int((time.perf_counter() - started) * 1000),
+            "response_preview": text[:80],
+        }
 
     def resolve_model(self, *, model: str | None = None, purpose: str | None = None) -> tuple[str, str | None]:
         if model:
@@ -166,7 +194,16 @@ class LLMEngine:
             return min(base, 220)
         return base
 
-    async def _ollama_generate(self, prompt: str, *, temperature: float, model: str, purpose: str | None = None) -> str:
+    async def _ollama_generate(
+        self,
+        prompt: str,
+        *,
+        temperature: float,
+        model: str,
+        purpose: str | None = None,
+        num_predict_override: int | None = None,
+        num_ctx_override: int | None = None,
+    ) -> str:
         url = f"{self.settings.ollama_base_url.rstrip('/')}/api/generate"
         payload = {
             "model": model,
@@ -175,8 +212,8 @@ class LLMEngine:
             "keep_alive": self.settings.ollama_keep_alive,
             "options": {
                 "temperature": temperature,
-                "num_ctx": self.settings.ollama_num_ctx,
-                "num_predict": self._compute_num_predict(prompt=prompt, purpose=purpose),
+                "num_ctx": num_ctx_override if num_ctx_override is not None else self.settings.ollama_num_ctx,
+                "num_predict": num_predict_override if num_predict_override is not None else self._compute_num_predict(prompt=prompt, purpose=purpose),
             },
         }
         timeout = httpx.Timeout(self.settings.ollama_timeout_seconds, connect=30.0, read=self.settings.ollama_timeout_seconds)

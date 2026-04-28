@@ -7,7 +7,15 @@ async function request<T>(path: string, options?: RequestInit): Promise<T> {
     headers: options?.body instanceof FormData ? undefined : { 'Content-Type': 'application/json' },
     ...options,
   })
-  if (!res.ok) throw new Error((await res.text()) || `Request failed: ${res.status}`)
+  if (!res.ok) {
+    const contentType = res.headers.get('content-type') || ''
+    const body = await res.text()
+    const isHtml = contentType.includes('text/html') || body.toLowerCase().includes('<html')
+    if (res.status === 504 || (isHtml && body.toLowerCase().includes('gateway time-out'))) {
+      throw new Error('The gateway timed out while the model was still generating. Try a smaller model, enable fast mode, or use a longer proxy timeout.')
+    }
+    throw new Error((isHtml ? `Request failed: ${res.status}` : body) || `Request failed: ${res.status}`)
+  }
   if (res.status === 204) return {} as T
   return res.json() as Promise<T>
 }

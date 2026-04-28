@@ -189,6 +189,8 @@ class PageService:
             severe_flags.get(flag)
             for flag in ["prompt_leakage", "off_domain", "unsupported_claims", "repetition"]
         )
+        if self.llm_engine.settings.llm_fast_mode:
+            should_retry = False
         if should_retry and self.llm_engine.settings.model_provider.lower().strip() != "mock":
             retry_result = await skill.run(
                 {

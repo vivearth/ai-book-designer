@@ -12,6 +12,7 @@ def test_llm_status_mock(monkeypatch):
     status = asyncio.run(LLMEngine().get_provider_status())
     assert status['provider'] == 'mock'
     assert status['available'] is True
+    assert status['configured_model_present'] is True
 
 
 def test_llm_status_ollama_mocked(monkeypatch):
@@ -45,3 +46,4 @@ def test_llm_status_ollama_mocked(monkeypatch):
     assert result['provider'] == 'ollama'
     assert result['available'] is True
     assert 'qwen2.5:3b-instruct' in result['models']
+    assert result['configured_model_present'] is True

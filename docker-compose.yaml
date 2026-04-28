@@ -62,6 +62,21 @@ services:
     volumes:
       - ollama_data:/root/.ollama
 
+  ollama-warmup:
+    image: curlimages/curl:latest
+    container_name: book_designer_ollama_warmup
+    profiles: ["llm"]
+    depends_on:
+      - ollama
+    environment:
+      OLLAMA_BASE_URL: ${OLLAMA_BASE_URL:-http://ollama:11434}
+      OLLAMA_MODEL: ${OLLAMA_MODEL:-qwen2.5:3b-instruct}
+      OLLAMA_WARMUP_TIMEOUT_SECONDS: ${OLLAMA_WARMUP_TIMEOUT_SECONDS:-300}
+      OLLAMA_KEEP_ALIVE: ${OLLAMA_KEEP_ALIVE:-10m}
+    volumes:
+      - ./scripts/warmup_ollama.sh:/warmup_ollama.sh:ro
+    command: ["sh", "/warmup_ollama.sh"]
+
 volumes:
   postgres_data:
   server_data:
