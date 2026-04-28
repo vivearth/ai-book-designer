@@ -116,12 +116,34 @@ class Page(Base):
     final_text: Mapped[str | None] = mapped_column(Text, nullable=True)
     layout_json: Mapped[dict] = mapped_column(JSON, default=dict)
     generation_metadata: Mapped[dict] = mapped_column(JSON, default=dict)
+    selected_layout_option_id: Mapped[str | None] = mapped_column(ForeignKey("page_layout_options.id", ondelete="SET NULL"), nullable=True, index=True)
     status: Mapped[str] = mapped_column(String(40), default="draft")
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utc_now)
     updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utc_now, onupdate=utc_now)
 
     book: Mapped[Book] = relationship(back_populates="pages")
     images: Mapped[list[PageImage]] = relationship(back_populates="page", cascade="all, delete-orphan")
+    layout_options: Mapped[list[PageLayoutOption]] = relationship(back_populates="page", cascade="all, delete-orphan", foreign_keys="PageLayoutOption.page_id")
+    selected_layout_option: Mapped[PageLayoutOption | None] = relationship(foreign_keys=[selected_layout_option_id], post_update=True)
+
+
+class PageLayoutOption(Base):
+    __tablename__ = "page_layout_options"
+    __table_args__ = (UniqueConstraint("page_id", "option_index", name="uq_page_layout_option_index"),)
+
+    id: Mapped[str] = mapped_column(String(80), primary_key=True, default=lambda: new_id("plo"))
+    page_id: Mapped[str] = mapped_column(ForeignKey("pages.id", ondelete="CASCADE"), index=True)
+    option_index: Mapped[int] = mapped_column(Integer)
+    label: Mapped[str] = mapped_column(String(80))
+    layout_json: Mapped[dict] = mapped_column(JSON, default=dict)
+    preview_metadata: Mapped[dict] = mapped_column(JSON, default=dict)
+    rationale: Mapped[str | None] = mapped_column(Text, nullable=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utc_now)
+    selected_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+
+    page: Mapped[Page] = relationship(back_populates="layout_options", foreign_keys=[page_id])
+
+
 
 
 class SourceAsset(Base):

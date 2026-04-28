@@ -1,13 +1,14 @@
 import { useEffect, useMemo, useState } from 'react'
 import { api } from '../api'
 import { BOOK_TYPE_MAP } from '../bookTypes'
-import type { Book, GenerationResponse, Page, Project, SourceAsset } from '../types'
+import type { Book, GenerationResponse, Page, PageLayoutOption, Project, SourceAsset } from '../types'
 import { BookPreviewPane } from './BookPreviewPane'
 import { ChatPane } from './ChatPane'
 import { DeveloperDiagnostics } from './DeveloperDiagnostics'
 import { QualityReportPanel } from './QualityReportPanel'
 import { SourceLibraryPane } from './SourceLibraryPane'
 import { estimatePageCapacity } from '../utils/pageCapacity'
+import { LayoutOptionsPanel } from './LayoutOptionsPanel'
 
 type Draft = { user_prompt: string; user_text: string; instruction: string; imageFile: File | null }
 const INITIAL_DRAFT: Draft = { user_prompt: '', user_text: '', instruction: 'Shape this into a polished page while preserving continuity.', imageFile: null }
@@ -38,6 +39,9 @@ export function BookWorkspace({ book, pages, setPages, refreshPages, onBack, onS
   const [includeDraft, setIncludeDraft] = useState(true)
   const [exportError, setExportError] = useState<string | null>(null)
   const [sourcesOpen, setSourcesOpen] = useState(false)
+  const [layoutOptionsOpen, setLayoutOptionsOpen] = useState(false)
+  const [layoutOptions, setLayoutOptions] = useState<PageLayoutOption[]>([])
+  const [layoutOptionsBusy, setLayoutOptionsBusy] = useState(false)
 
   const sortedPages = useMemo(() => [...pages].sort((a, b) => a.page_number - b.page_number), [pages])
   const currentPage = activeTarget.kind === 'page' ? sortedPages.find((page) => page.id === activeTarget.pageId) ?? null : null
@@ -138,6 +142,36 @@ export function BookWorkspace({ book, pages, setPages, refreshPages, onBack, onS
     }
   }
 
+  async function generateLayoutOptions() {
+    if (!currentPage) return
+    setLayoutOptionsBusy(true)
+    setError(null)
+    try {
+      const result = await api.generateLayoutOptions(currentPage.id, {
+        preserve_text: true,
+        option_count: 2,
+        page_capacity_hint: estimatePageCapacity(book, currentPage),
+        instructions: draft.instruction,
+      })
+      setLayoutOptions(result.options)
+      setWarnings((prev) => [...prev, ...(result.warnings || [])])
+      setLayoutOptionsOpen(true)
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Could not generate layout options')
+    } finally {
+      setLayoutOptionsBusy(false)
+    }
+  }
+
+  async function selectLayoutOption(option: PageLayoutOption) {
+    if (!currentPage) return
+    await guarded(async () => {
+      await api.selectLayoutOption(currentPage.id, option.id)
+      await refreshPages()
+      setLayoutOptionsOpen(false)
+    })
+  }
+
   const pageStats = useMemo(() => {
     const approved = sortedPages.filter((p) => p.status === 'approved').length
     const generated = sortedPages.filter((p) => p.status === 'generated').length
@@ -169,7 +203,7 @@ export function BookWorkspace({ book, pages, setPages, refreshPages, onBack, onS
 
       <div className="workspace-grid">
         <div>
-          <ChatPane pageNumber={currentPage?.page_number || nextPageNumber} draft={draft} setDraft={setDraft} busy={busy} currentPage={currentPage} onSaveDraft={saveDraft} onGenerate={generatePage} onApprove={approvePage} onNextPage={() => void createNextPage()} />
+          <ChatPane pageNumber={currentPage?.page_number || nextPageNumber} draft={draft} setDraft={setDraft} busy={busy || layoutOptionsBusy} currentPage={currentPage} onSaveDraft={saveDraft} onGenerate={generatePage} onApprove={approvePage} onNextPage={() => void createNextPage()} onGenerateLayoutOptions={() => void generateLayoutOptions()} />
           {expertMode ? <QualityReportPanel report={qualityReport || undefined} warnings={warnings} /> : null}
         </div>
         <BookPreviewPane book={book} pages={sortedPages} activeTarget={activeTarget} onSelectCover={() => setActiveTarget({ kind: 'cover' })} onSelectPage={(id) => setActiveTarget({ kind: 'page', pageId: id })} onCreateNextPage={() => void createNextPage()} />
@@ -206,6 +240,16 @@ export function BookWorkspace({ book, pages, setPages, refreshPages, onBack, onS
           </div>
         </div>
       ) : null}
+      <LayoutOptionsPanel
+        open={layoutOptionsOpen}
+        page={currentPage}
+        book={book}
+        options={layoutOptions}
+        selectedOptionId={currentPage?.selected_layout_option_id}
+        generating={layoutOptionsBusy}
+        onClose={() => setLayoutOptionsOpen(false)}
+        onSelect={(option) => void selectLayoutOption(option)}
+      />
     </div>
   )
 }

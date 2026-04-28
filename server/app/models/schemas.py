@@ -163,6 +163,7 @@ class PageRead(BaseModel):
     final_text: str | None
     layout_json: dict[str, Any]
     generation_metadata: dict[str, Any]
+    selected_layout_option_id: str | None = None
     status: str
     created_at: datetime
     updated_at: datetime
@@ -285,6 +286,33 @@ class GenerationResponse(BaseModel):
     warnings: list[str] = Field(default_factory=list)
     overflow_created_page: PageRead | None = None
     overflow_warning: str | None = None
+
+
+class LayoutOptionsGenerateRequest(BaseModel):
+    preserve_text: bool = True
+    option_count: int = 2
+    page_capacity_hint: PageCapacityHint | None = None
+    instructions: str | None = None
+
+
+class PageLayoutOptionRead(BaseModel):
+    id: str
+    page_id: str
+    option_index: int
+    label: str
+    layout_json: dict[str, Any]
+    preview_metadata: dict[str, Any]
+    rationale: str | None
+    created_at: datetime
+    selected_at: datetime | None
+
+    model_config = {"from_attributes": True}
+
+
+class LayoutOptionsResponse(BaseModel):
+    page_id: str
+    options: list[PageLayoutOptionRead] = Field(default_factory=list)
+    warnings: list[str] = Field(default_factory=list)
 
 
 class PdfExportResponse(BaseModel):

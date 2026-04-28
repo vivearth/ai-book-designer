@@ -10,13 +10,14 @@ from app.core.book_types import get_book_type_config
 from app.core.config import get_settings
 from app.engines.context_engine import ContextEngine
 from app.engines.layout_engine import LayoutEngine
+from app.engines.layout_option_engine import LayoutOptionEngine, LayoutOptionInput
 from app.engines.llm_engine import LLMEngine
 from app.engines.memory_engine import MemoryEngine
 from app.engines.source_retrieval_engine import SourceRetrievalEngine
 from app.engines.text_pagination_engine import TextPaginationEngine
 from app.engines.text_quality_engine import TextQualityEngine
-from app.models.entities import Book, BrandProfile, FormatProfile, Page, PageImage, Project, SourceChunk, new_id
-from app.models.schemas import GenerationRequest, PageCreate, PageUpdate
+from app.models.entities import Book, BrandProfile, FormatProfile, Page, PageImage, PageLayoutOption, Project, SourceChunk, new_id, utc_now
+from app.models.schemas import GenerationRequest, LayoutOptionsGenerateRequest, PageCreate, PageUpdate
 from app.skills import build_skill_registry
 from app.skills.base import SkillContext
 
@@ -26,6 +27,7 @@ class PageService:
         self.context_engine = ContextEngine()
         self.layout_engine = LayoutEngine()
         self.memory_engine = MemoryEngine()
+        self.layout_option_engine = LayoutOptionEngine()
         self.llm_engine = LLMEngine()
         self.source_retrieval_engine = SourceRetrievalEngine()
         self.text_quality_engine = TextQualityEngine()
@@ -71,7 +73,8 @@ class PageService:
         for key, value in payload.model_dump(exclude_unset=True).items():
             setattr(page, key, value)
         if page.final_text or page.generated_text:
-            page.layout_json = self.layout_engine.build_layout(book=page.book, page=page)
+            if not page.selected_layout_option_id:
+                page.layout_json = self.layout_engine.build_layout(book=page.book, page=page)
             self.memory_engine.update_after_page(db, book=page.book, page=page)
         db.commit()
         db.refresh(page)
@@ -229,7 +232,8 @@ class PageService:
 
         page.generated_text = current_text
         page.status = "generated"
-        page.layout_json = self.layout_engine.build_layout(book=book, page=page)
+        if not page.selected_layout_option_id:
+            page.layout_json = self.layout_engine.build_layout(book=book, page=page)
         source_refs = content.get("source_refs", [])
         page.generation_metadata = {
             "skill_id": skill_id,
@@ -267,11 +271,84 @@ class PageService:
         db.refresh(page)
         return page, packet, notes, content, source_refs, quality_report, warnings, overflow_created_page, overflow_warning
 
+
+
+    async def generate_layout_options(self, db: Session, page_id: str, request: LayoutOptionsGenerateRequest) -> tuple[Page, list[PageLayoutOption], list[str]]:
+        page = self.get_page(db, page_id)
+        if request.option_count != 2:
+            raise HTTPException(status_code=400, detail="MVP currently supports exactly 2 layout options.")
+
+        text = (page.final_text or page.generated_text or page.user_text or "").strip()
+        if not text and len(page.images) == 0:
+            raise HTTPException(status_code=400, detail="Add page text or image before generating layout options.")
+
+        options_payload = await self.layout_option_engine.generate_options(
+            LayoutOptionInput(
+                book=page.book,
+                page=page,
+                text=text,
+                image_count=len(page.images),
+                page_capacity_hint=request.page_capacity_hint.model_dump() if request.page_capacity_hint else None,
+                instructions=request.instructions,
+            )
+        )
+
+        db.query(PageLayoutOption).filter(PageLayoutOption.page_id == page.id).delete()
+        saved_options: list[PageLayoutOption] = []
+        for payload in options_payload:
+            option = PageLayoutOption(
+                page_id=page.id,
+                option_index=payload["option_index"],
+                label=payload["label"],
+                layout_json=payload["layout_json"],
+                preview_metadata=payload["preview_metadata"],
+                rationale=payload.get("rationale"),
+            )
+            db.add(option)
+            saved_options.append(option)
+
+        metadata = dict(page.generation_metadata or {})
+        metadata["layout_options"] = {
+            "generated_at": utc_now().isoformat(),
+            "preserve_text": request.preserve_text,
+            "source_text_field": "final_text" if page.final_text else ("generated_text" if page.generated_text else "user_text"),
+        }
+        page.generation_metadata = metadata
+        db.commit()
+        db.refresh(page)
+        for option in saved_options:
+            db.refresh(option)
+
+        return page, sorted(saved_options, key=lambda item: item.option_index), []
+
+    def list_layout_options(self, db: Session, page_id: str) -> list[PageLayoutOption]:
+        page = self.get_page(db, page_id)
+        return db.query(PageLayoutOption).filter(PageLayoutOption.page_id == page.id).order_by(PageLayoutOption.option_index.asc()).all()
+
+    def select_layout_option(self, db: Session, page_id: str, option_id: str) -> Page:
+        page = self.get_page(db, page_id)
+        option = db.get(PageLayoutOption, option_id)
+        if not option or option.page_id != page.id:
+            raise HTTPException(status_code=404, detail="Layout option not found for this page")
+
+        option.selected_at = utc_now()
+        page.selected_layout_option_id = option.id
+        page.layout_json = dict(option.layout_json or {})
+        page.layout_json["layout_option_id"] = option.id
+        metadata = dict(page.generation_metadata or {})
+        metadata["selected_layout_option_id"] = option.id
+        metadata["selected_layout_option_label"] = option.label
+        page.generation_metadata = metadata
+        db.commit()
+        db.refresh(page)
+        return page
+
     def approve_page(self, db: Session, page_id: str) -> Page:
         page = self.get_page(db, page_id)
         page.final_text = page.final_text or page.generated_text or page.user_text
         page.status = "approved"
-        page.layout_json = self.layout_engine.build_layout(book=page.book, page=page)
+        if not page.selected_layout_option_id:
+            page.layout_json = self.layout_engine.build_layout(book=page.book, page=page)
         self.memory_engine.update_after_page(db, book=page.book, page=page)
         db.commit()
         db.refresh(page)
@@ -295,7 +372,8 @@ class PageService:
             caption=caption,
         )
         db.add(image)
-        page.layout_json = self.layout_engine.build_layout(book=page.book, page=page)
+        if not page.selected_layout_option_id:
+            page.layout_json = self.layout_engine.build_layout(book=page.book, page=page)
         db.commit()
         db.refresh(image)
         return image

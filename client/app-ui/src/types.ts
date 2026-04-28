@@ -105,10 +105,29 @@ export type Page = {
   final_text?: string | null
   layout_json: Record<string, unknown>
   generation_metadata: Record<string, unknown>
+  selected_layout_option_id?: string | null
   status: string
   created_at: string
   updated_at: string
   images: PageImage[]
+}
+
+export type PageLayoutOption = {
+  id: string
+  page_id: string
+  option_index: number
+  label: string
+  layout_json: Record<string, unknown>
+  preview_metadata: Record<string, unknown>
+  rationale?: string | null
+  created_at: string
+  selected_at?: string | null
+}
+
+export type LayoutOptionsResponse = {
+  page_id: string
+  options: PageLayoutOption[]
+  warnings: string[]
 }
 
 export type GenerationResponse = {

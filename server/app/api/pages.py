@@ -4,7 +4,7 @@ from fastapi import APIRouter, Depends, File, Form, UploadFile
 from sqlalchemy.orm import Session
 
 from app.core.database import get_db
-from app.models.schemas import GenerationRequest, GenerationResponse, PageCreate, PageImageRead, PageRead, PageUpdate
+from app.models.schemas import GenerationRequest, GenerationResponse, LayoutOptionsGenerateRequest, LayoutOptionsResponse, PageCreate, PageImageRead, PageLayoutOptionRead, PageRead, PageUpdate
 from app.services.page_service import PageService
 
 router = APIRouter(tags=["pages"])
@@ -50,6 +50,23 @@ async def generate_page(page_id: str, payload: GenerationRequest, db: Session = 
 @router.post("/pages/{page_id}/approve", response_model=PageRead)
 def approve_page(page_id: str, db: Session = Depends(get_db)):
     return service.approve_page(db, page_id)
+
+
+@router.post("/pages/{page_id}/layout-options", response_model=LayoutOptionsResponse)
+async def generate_layout_options(page_id: str, payload: LayoutOptionsGenerateRequest, db: Session = Depends(get_db)):
+    page, options, warnings = await service.generate_layout_options(db, page_id, payload)
+    return LayoutOptionsResponse(page_id=page.id, options=[PageLayoutOptionRead.model_validate(option) for option in options], warnings=warnings)
+
+
+@router.get("/pages/{page_id}/layout-options", response_model=LayoutOptionsResponse)
+def list_layout_options(page_id: str, db: Session = Depends(get_db)):
+    options = service.list_layout_options(db, page_id)
+    return LayoutOptionsResponse(page_id=page_id, options=[PageLayoutOptionRead.model_validate(option) for option in options], warnings=[])
+
+
+@router.post("/pages/{page_id}/layout-options/{option_id}/select", response_model=PageRead)
+def select_layout_option(page_id: str, option_id: str, db: Session = Depends(get_db)):
+    return service.select_layout_option(db, page_id, option_id)
 
 
 @router.post("/pages/{page_id}/images", response_model=PageImageRead)
