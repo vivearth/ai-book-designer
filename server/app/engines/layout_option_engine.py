@@ -166,6 +166,10 @@ class LayoutOptionEngine:
         provider = self.llm_engine.settings.model_provider.lower().strip()
         if provider != "ollama":
             return {}
+        if self.llm_engine.settings.llm_fast_mode:
+            return {}
+        if not (payload.instructions or "").strip():
+            return {}
         prompt = (
             "Suggest one short rationale sentence for each layout option. "
             "Do not rewrite page text. Respond as JSON with keys option_1 and option_2.\n"

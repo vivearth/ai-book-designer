@@ -18,6 +18,8 @@ export function ChatPane({
   onApprove,
   onNextPage,
   onGenerateLayoutOptions,
+  onViewLayoutOptions,
+  hasExistingLayoutOptions,
 }: {
   pageNumber: number
   draft: Draft
@@ -29,6 +31,8 @@ export function ChatPane({
   onApprove: () => void
   onNextPage: () => void
   onGenerateLayoutOptions: () => void
+  onViewLayoutOptions: () => void
+  hasExistingLayoutOptions: boolean
 }) {
   return (
     <section className="chat-pane">
@@ -62,7 +66,8 @@ export function ChatPane({
           <div className="chat-actions">
             <button type="button" className="ghost-button" onClick={onSaveDraft} disabled={busy}>Save draft</button>
             <button type="button" onClick={onGenerate} disabled={busy}>Generate page</button>
-            <button type="button" className="ghost-button" onClick={onGenerateLayoutOptions} disabled={busy || !currentPage}>Generate Layout Options</button>
+            <button type="button" className="ghost-button" onClick={onGenerateLayoutOptions} disabled={busy}>Generate Layout Options</button>
+            {hasExistingLayoutOptions ? <button type="button" className="ghost-button" onClick={onViewLayoutOptions} disabled={busy}>View Layout Options</button> : null}
             <button type="button" className="secondary-button" onClick={onApprove} disabled={busy || !currentPage}>Approve page</button>
             <button type="button" className="ghost-button" onClick={onNextPage} disabled={busy}>Next page</button>
           </div>

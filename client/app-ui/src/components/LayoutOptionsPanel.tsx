@@ -1,7 +1,7 @@
 import type { Book, Page, PageLayoutOption } from '../types'
 import { LayoutOptionPreview } from './LayoutOptionPreview'
 
-export function LayoutOptionsPanel({ open, page, book, options, selectedOptionId, generating, onClose, onSelect }: {
+export function LayoutOptionsPanel({ open, page, book, options, selectedOptionId, generating, onClose, onSelect, onRegenerate }: {
   open: boolean
   page: Page | null
   book: Book
@@ -10,6 +10,7 @@ export function LayoutOptionsPanel({ open, page, book, options, selectedOptionId
   generating: boolean
   onClose: () => void
   onSelect: (option: PageLayoutOption) => void
+  onRegenerate: () => void
 }) {
   if (!open || !page) return null
 
@@ -19,19 +20,24 @@ export function LayoutOptionsPanel({ open, page, book, options, selectedOptionId
         <h3>Choose a layout for Page {page.page_number}</h3>
         <p className="muted">Compare Option A and Option B side by side, then select one to apply to preview and export.</p>
         {generating ? <p className="notice-pill">Generating layout options…</p> : null}
-        <div className="layout-options-grid">
-          {options.map((option) => (
-            <LayoutOptionPreview
-              key={option.id}
-              book={book}
-              page={page}
-              option={option}
-              selected={selectedOptionId === option.id}
-              onSelect={() => onSelect(option)}
-            />
-          ))}
-        </div>
+        {options.length ? (
+          <div className="layout-options-grid">
+            {options.map((option) => (
+              <LayoutOptionPreview
+                key={option.id}
+                book={book}
+                page={page}
+                option={option}
+                selected={selectedOptionId === option.id}
+                onSelect={() => onSelect(option)}
+              />
+            ))}
+          </div>
+        ) : (
+          <p className="muted">No saved layout options yet. Generate options to compare this page.</p>
+        )}
         <div className="chat-actions">
+          <button type="button" onClick={onRegenerate} disabled={generating}>Regenerate options</button>
           <button type="button" className="ghost-button" onClick={onClose}>Close</button>
         </div>
       </div>
