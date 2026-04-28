@@ -21,20 +21,8 @@ services:
       context: ./server
     container_name: book_designer_server
     env_file:
-      - .env.example
+      - .env
     environment:
-      DATABASE_URL: ${DATABASE_URL:-postgresql+psycopg2://book_user:book_password@db:5432/book_designer}
-      MODEL_PROVIDER: ${MODEL_PROVIDER:-mock}
-      OLLAMA_BASE_URL: ${OLLAMA_BASE_URL:-http://ollama:11434}
-      OLLAMA_MODEL: ${OLLAMA_MODEL:-qwen2.5:3b-instruct}
-      OLLAMA_TIMEOUT_SECONDS: ${OLLAMA_TIMEOUT_SECONDS:-300}
-      OLLAMA_NUM_CTX: ${OLLAMA_NUM_CTX:-2048}
-      OLLAMA_NUM_PREDICT: ${OLLAMA_NUM_PREDICT:-320}
-      OLLAMA_KEEP_ALIVE: ${OLLAMA_KEEP_ALIVE:-5m}
-      OLLAMA_STREAM: ${OLLAMA_STREAM:-false}
-      LLM_TWO_PASS_ENABLED: ${LLM_TWO_PASS_ENABLED:-true}
-      LLM_FAST_MODE: ${LLM_FAST_MODE:-false}
-      SERVER_CORS_ORIGINS: ${SERVER_CORS_ORIGINS:-http://localhost:5173,http://localhost:3000,http://localhost:8080}
       DATA_DIR: ${DATA_DIR:-/app/data}
     ports:
       - "8000:8000"
@@ -61,6 +49,18 @@ services:
       - "11434:11434"
     volumes:
       - ollama_data:/root/.ollama
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: all
+              capabilities: [gpu]
+    environment:
+      NVIDIA_VISIBLE_DEVICES: all
+      NVIDIA_DRIVER_CAPABILITIES: compute,utility
+      OLLAMA_KEEP_ALIVE: 10m
+      OLLAMA_CONTEXT_LENGTH: 2048
 
   ollama-warmup:
     image: curlimages/curl:latest
