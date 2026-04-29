@@ -179,7 +179,6 @@ class SourceChunk(Base):
     text: Mapped[str] = mapped_column(Text)
     summary: Mapped[str | None] = mapped_column(Text, nullable=True)
     token_estimate: Mapped[int | None] = mapped_column(Integer, nullable=True)
-    metadata_json: Mapped[dict] = mapped_column("metadata", JSON, default=dict)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utc_now)
 
     source_asset: Mapped[SourceAsset] = relationship(back_populates="chunks")
@@ -194,7 +193,6 @@ class PageImage(Base):
     stored_filename: Mapped[str] = mapped_column(String(255))
     content_type: Mapped[str | None] = mapped_column(String(120), nullable=True)
     caption: Mapped[str | None] = mapped_column(Text, nullable=True)
-    metadata_json: Mapped[dict] = mapped_column("metadata", JSON, default=dict)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utc_now)
 
     page: Mapped[Page] = relationship(back_populates="images")

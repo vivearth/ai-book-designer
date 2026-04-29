@@ -74,11 +74,16 @@ class PageService:
 
     def update_page(self, db: Session, page_id: str, payload: PageUpdate) -> Page:
         page = self.get_page(db, page_id)
-        for key, value in payload.model_dump(exclude_unset=True).items():
+        updates = payload.model_dump(exclude_unset=True)
+        text_fields = {"user_text", "generated_text", "final_text"}
+        text_changed = any(field in updates for field in text_fields)
+        for key, value in updates.items():
             setattr(page, key, value)
+        if not page.selected_layout_option_id:
+            page.layout_json = self.layout_engine.build_layout(book=page.book, page=page)
+        if text_changed:
+            self.repaginate_from_page(db, page, reason="manual_text_edit")
         if page.final_text or page.generated_text:
-            if not page.selected_layout_option_id:
-                page.layout_json = self.layout_engine.build_layout(book=page.book, page=page)
             self.memory_engine.update_after_page(db, book=page.book, page=page)
         db.commit()
         db.refresh(page)
@@ -158,7 +163,7 @@ class PageService:
                 .first()
             )
             if next_page:
-                next_active = next_page.final_text or next_page.generated_text or next_page.user_text or ""
+                next_active = next_page.generated_text or next_page.final_text or next_page.user_text or ""
                 next_page.generated_text = f"{overflow_text.strip()}\n\n{next_active}".strip()
                 next_page.layout_json = self.layout_engine.build_layout(book=book, page=next_page)
                 overflow_warning = "Generated text overflow was merged into existing next page."
@@ -410,56 +415,61 @@ class PageService:
             page_id=page.id,
             original_filename=file.filename or stored_filename,
             stored_filename=stored_filename,
-            content_type=file.content_type,
+            content_type=f"image/{ext if ext != 'jpg' else 'jpeg'}",
             caption=caption,
-            metadata_json={
-                "width": img.width,
-                "height": img.height,
-                "optimized_size_bytes": len(output.getvalue()),
-                "original_size_bytes": original_size,
-            },
         )
         db.add(image)
+        db.flush()
+        metadata = dict(page.generation_metadata or {})
+        uploads = dict(metadata.get("image_uploads") or {})
+        uploads[image.id] = {
+            "width": img.width,
+            "height": img.height,
+            "optimized_size_bytes": len(output.getvalue()),
+            "original_size_bytes": original_size,
+            "stored_filename": stored_filename,
+            "content_type": image.content_type,
+            "original_content_type": file.content_type,
+        }
+        metadata["image_uploads"] = uploads
+        page.generation_metadata = metadata
         if not page.selected_layout_option_id:
             page.layout_json = self.layout_engine.build_layout(book=page.book, page=page)
-        self.repaginate_page_after_layout_change(db, page, reason="image_added")
+        self.repaginate_from_page(db, page, reason="image_added")
         db.commit()
         db.refresh(image)
         return image
 
-    def repaginate_page_after_layout_change(self, db: Session, page: Page, reason: str = "layout_change") -> None:
-        active_field = "final_text" if page.final_text else ("generated_text" if page.generated_text else "user_text")
-        text = getattr(page, active_field) or ""
-        if not text.strip():
-            return
-        composition = (page.layout_json or {}).get("composition", "text_only")
-        capacity = self.page_capacity_engine.estimate_capacity_words(page.book, page, composition)
-        current_text, overflow_text = self.pagination_engine.split_text_for_page(text, capacity)
-        setattr(page, active_field, current_text)
-        metadata = dict(page.generation_metadata or {})
-        metadata["pagination"] = {
-            "estimated_capacity_words": capacity,
-            "actual_words_on_page": len(current_text.split()),
-            "overflow_words": len(overflow_text.split()) if overflow_text else 0,
-            "pagination_reason": reason,
-        }
-        if overflow_text.strip():
-            next_page = db.query(Page).filter(Page.book_id == page.book_id, Page.page_number == page.page_number + 1).first()
-            if next_page:
-                next_field = "final_text" if next_page.final_text else ("generated_text" if next_page.generated_text else "user_text")
-                existing = getattr(next_page, next_field) or ""
-                setattr(next_page, next_field, f"{overflow_text.strip()}\n\n{existing}".strip())
-                metadata["pagination"]["overflow_target_page_id"] = next_page.id
-            else:
-                next_page = self.create_page(db, page.book_id, PageCreate(page_number=page.page_number + 1, user_prompt=f"Continuation from page {page.page_number}"))
-                if active_field in {"generated_text", "final_text"}:
-                    next_page.generated_text = overflow_text
-                    next_page.status = "generated"
-                else:
-                    next_page.user_text = overflow_text
-                next_page.layout_json = self.layout_engine.build_layout(book=page.book, page=next_page)
-                metadata["pagination"]["overflow_target_page_id"] = next_page.id
-        page.generation_metadata = metadata
+    def repaginate_from_page(self, db: Session, page: Page, reason: str, max_pages: int = 20) -> None:
+        current = page
+        for _ in range(max_pages):
+            active_field = "final_text" if current.final_text else ("generated_text" if current.generated_text else "user_text")
+            text = (getattr(current, active_field) or "").strip()
+            if not text:
+                return
+            composition = (current.layout_json or {}).get("composition", "text_only")
+            capacity = self.page_capacity_engine.estimate_capacity_words(current.book, current, composition)
+            current_text, overflow_text = self.pagination_engine.split_text_for_page(text, capacity)
+            setattr(current, active_field, current_text)
+            md = dict(current.generation_metadata or {})
+            md["pagination"] = {"estimated_capacity_words": capacity, "actual_words_on_page": len(current_text.split()), "overflow_words": len(overflow_text.split()) if overflow_text else 0, "pagination_reason": reason}
+            current.generation_metadata = md
+            if not overflow_text.strip():
+                return
+            next_page = db.query(Page).filter(Page.book_id == current.book_id, Page.page_number == current.page_number + 1).first()
+            if not next_page:
+                next_page = self.create_page(db, current.book_id, PageCreate(page_number=current.page_number + 1, user_prompt=f"Continuation from page {current.page_number}"))
+            next_field = "generated_text" if active_field in {"generated_text", "final_text"} else "user_text"
+            existing = getattr(next_page, next_field) or ""
+            setattr(next_page, next_field, f"{overflow_text.strip()}\n\n{existing}".strip())
+            if next_field == "generated_text":
+                next_page.status = "generated"
+            next_md = dict(next_page.generation_metadata or {})
+            next_md.update({"continued_from_page_id": current.id, "auto_continued": True, "repaginated_due_to": reason, "overflow_source_page_id": current.id})
+            next_page.generation_metadata = next_md
+            if not next_page.selected_layout_option_id:
+                next_page.layout_json = self.layout_engine.build_layout(book=next_page.book, page=next_page)
+            current = next_page
 
     def _resolve_skill_id(self, requested: str | None, content_mode: str | None, project: Project | None, book: Book) -> str:
         if requested:

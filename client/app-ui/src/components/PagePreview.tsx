@@ -18,13 +18,23 @@ export function PagePreview({ book, page, layoutOverride, mini = false, editable
   const truncated = words.length > capacity.estimated_words
   const visibleText = truncated ? `${words.slice(0, capacity.estimated_words).join(' ')}…` : text
   const showImageArea = composition !== 'text_only'
+  const headline = typeof page?.generation_metadata?.headline === 'string' ? String(page.generation_metadata.headline).trim() : null
+  const canEdit = editable && !mini
   const [editing, setEditing] = useState(false)
+  const [saving, setSaving] = useState(false)
   const [draftText, setDraftText] = useState(text)
   useEffect(() => setDraftText(text), [text, page?.id])
 
   async function saveIfChanged() {
-    setEditing(false)
-    if (draftText !== text) await onTextSave?.(draftText)
+    if (saving) return
+    if (draftText === text) return setEditing(false)
+    setSaving(true)
+    try {
+      await onTextSave?.(draftText)
+      setEditing(false)
+    } finally {
+      setSaving(false)
+    }
   }
 
   return (
@@ -32,6 +42,8 @@ export function PagePreview({ book, page, layoutOverride, mini = false, editable
       <div className="page-preview__meta">{page ? `Page ${page.page_number}` : 'Preview page'}</div>
       {showImageArea ? (image ? <img src={resolveUploadUrl(image.stored_filename)} alt={image.original_filename} className="page-preview__image" onDoubleClick={() => onImageSelect?.(image.id)} /> : <InternalImagePlaceholder layoutId={layoutId} />) : null}
       <div className="page-preview__body">
+        {layoutId === 'modern-editorial' ? <div className="page-preview__headline">{headline || `Page ${page?.page_number || ''}`.trim()}</div> : null}
+        {layoutId === 'classic-novel' ? <div className="page-preview__chapter-label">Chapter draft</div> : null}
         <div className={`page-content-frame ${editing ? 'is-editing' : ''}`}>
           {editing ? (
             <textarea className="page-text-flow" autoFocus value={draftText} onChange={(e) => setDraftText(e.target.value)} onBlur={() => void saveIfChanged()} onKeyDown={(e) => {
@@ -39,10 +51,11 @@ export function PagePreview({ book, page, layoutOverride, mini = false, editable
               if (e.key === 'Escape') { setDraftText(text); setEditing(false) }
             }} />
           ) : (
-            <article className="page-text-flow" title={editable ? 'Double-click to edit text' : undefined} onDoubleClick={() => editable && setEditing(true)} style={editable ? { cursor: 'text' } : undefined}>{visibleText}</article>
+            <article className="page-text-flow" title={canEdit ? 'Double-click to edit text' : undefined} onDoubleClick={() => canEdit && setEditing(true)} style={canEdit ? { cursor: 'text' } : undefined}>{visibleText}</article>
           )}
-          {truncated ? <><div className="page-overflow-fade" /><p className="continues-marker">Continues on next page</p></> : null}
+          {truncated && !editing ? <><div className="page-overflow-fade" /><p className="continues-marker">Continues on next page</p></> : null}
         </div>
+        {layoutId === 'modern-editorial' ? <aside className="page-preview__callout">Pull quote / callout space</aside> : null}
       </div>
     </div>
   )
