@@ -5,7 +5,15 @@ function toTimestamp(book: Book) {
   return new Date(book.updated_at || book.created_at || 0).getTime()
 }
 
-export function LandingScreen({ books, onContinue, onStartNew }: { books: Book[]; onContinue: (book: Book) => void; onStartNew: () => void; revealProjects: boolean; setRevealProjects: (value: boolean) => void }) {
+export function LandingScreen({
+  books,
+  onContinue,
+  onStartNew,
+}: {
+  books: Book[]
+  onContinue: (book: Book) => void
+  onStartNew: () => void
+}) {
   const sortedBooks = useMemo(() => [...books].sort((a, b) => toTimestamp(b) - toTimestamp(a)), [books])
   const [selectedResumeBookId, setSelectedResumeBookId] = useState('')
 
