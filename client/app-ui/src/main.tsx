@@ -32,7 +32,7 @@ function App() {
   return (
     <main className="app-shell">
       {mode === 'landing' ? (
-        <LandingScreen books={books} onContinue={(book) => void openBook(book)} onStartNew={() => setMode('wizard')} revealProjects={true} setRevealProjects={() => {}} />
+        <LandingScreen books={books} onContinue={(book) => void openBook(book)} onStartNew={() => setMode('wizard')} />
       ) : null}
 
       {mode === 'wizard' ? (

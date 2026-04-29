@@ -75,7 +75,7 @@ export function BookCreationWizard({ onCreated, onCancel }: { onCreated: (book: 
         <header className="wizard-header">
           <div>
             <p className="kicker">Immersive setup</p>
-            <h2>{step === 'book-type' ? 'What are you designing?' : step === 'creation-mode' ? 'How do you want to build it?' : step === 'book-details' ? 'Have you thought of a title?' : step === 'format-selection' ? 'Pick your format style' : 'Add your source material'}</h2>
+            <h2>{step === 'book-type' ? 'What kind of book are you creating?' : step === 'creation-mode' ? 'How do you want to build it?' : step === 'book-details' ? 'Give your book a working direction' : step === 'format-selection' ? 'Choose a visual format' : 'Add your source material'}</h2>
           </div>
           <Stepper steps={creationMode === 'expert' ? STEPS : STEPS.slice(0, 4)} current={stepIndex} />
         </header>
@@ -87,12 +87,12 @@ export function BookCreationWizard({ onCreated, onCancel }: { onCreated: (book: 
                 key={t.id}
                 className="book-type-card"
                 title={`${TYPE_MARKS[t.id] || "✦"} ${t.shortLabel}`}
-                subtitle={t.displayName}
+                subtitle={`${t.displayName} · ${t.description.split('.')[0]}.`}
                 selected={bookTypeId === t.id}
                 onClick={() => setBookTypeId(t.id)}
-                meta={<><span className="chip">{`Recommended: ${t.recommendedMode}`}</span><span className="chip muted">{t.sourcePolicy}</span></>}
+                meta={<><span className="chip">Recommended</span><span className="chip muted">{t.recommendedMode}</span></>}
               >
-                <p>{t.description}</p>
+                <p>{t.sourcePolicy}</p>
               </OptionCard>
             ))}
           </div>

@@ -39,15 +39,15 @@ export function ChatPane({
 
       <article className="chat-message chat-message--user draft-composer">
         <label>
-          Page direction
+          What should this page do?
           <textarea value={draft.user_prompt} onChange={(event) => setDraft({ ...draft, user_prompt: event.target.value })} placeholder="What belongs on this page?" />
         </label>
         <label>
-          Rough text / page copy
+          Page notes or draft text
           <textarea value={draft.user_text} onChange={(event) => setDraft({ ...draft, user_text: event.target.value })} placeholder="Paste rough draft, scene beats, or notes." />
         </label>
         <label>
-          Assistant guidance
+          How should AI shape it?
           <textarea value={draft.instruction} onChange={(event) => setDraft({ ...draft, instruction: event.target.value })} placeholder="Polish prose, preserve continuity, keep tone aligned." />
         </label>
         <p className="muted">Generation can combine your text direction and a reference image.</p>
@@ -61,8 +61,6 @@ export function ChatPane({
           <button type="button" className="ghost-button" onClick={onNextPage} disabled={busy}>Add next page</button>
         </div>
       </article>
-
-      <p className="muted">Need layout choices? Open the Layout tab.</p>
     </section>
   )
 }
