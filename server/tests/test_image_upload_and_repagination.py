@@ -50,3 +50,11 @@ def test_manual_text_edit_repaginates(client):
     assert r.status_code == 200
     updated = r.json()
     assert 'pagination' in updated['generation_metadata']
+
+
+def test_upload_image_rebuilds_image_aware_layout(client):
+    book = client.post('/api/books', json={'title': 'Layout', 'book_type_id': 'custom'}).json()
+    page = client.post(f"/api/books/{book['id']}/pages", json={'page_number': 1, 'user_text': 'word ' * 300}).json()
+    client.post(f"/api/pages/{page['id']}/images", files={'file': ('x.png', _img_bytes((1200,900)), 'image/png')})
+    updated = client.get(f"/api/books/{book['id']}/pages").json()[0]
+    assert updated['layout_json'].get('composition') != 'text_only'
