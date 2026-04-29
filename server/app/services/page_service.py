@@ -359,16 +359,30 @@ class PageService:
 
 
     def _validated_layout(self, book: Book, page: Page, variant: str | None = None) -> dict:
-        layout = self.layout_engine.build_layout(book=book, page=page, variant=variant)
         text = page.final_text or page.generated_text or page.user_text or ""
-        result = self.layout_validator.validate_layout(layout, page=page, text=text)
-        layout["validation"] = result.to_dict()
-        if not result.valid:
-            fallback = self.layout_engine.build_layout(book=book, page=page)
-            fallback_result = self.layout_validator.assert_valid_layout(fallback, page=page, text=text)
-            fallback["validation"] = fallback_result.to_dict()
-            return fallback
-        return layout
+        image_count = len(page.images)
+        fallback_variants = [
+            variant,
+            None,
+            "text_only_classic" if image_count == 0 else None,
+            "one_image_top_text_bottom" if image_count == 1 else None,
+            "two_image_grid_top_text_bottom" if image_count == 2 else None,
+            "three_plus_gallery_with_text_block" if image_count >= 3 else None,
+        ]
+        errors: list[dict] = []
+        seen: set[str] = set()
+        for candidate in [v for v in fallback_variants if v is not None or v is None]:
+            key = "__default__" if candidate is None else candidate
+            if key in seen:
+                continue
+            seen.add(key)
+            layout = self.layout_engine.build_layout(book=book, page=page, variant=candidate)
+            result = self.layout_validator.validate_layout(layout, page=page, text=text)
+            layout["validation"] = result.to_dict()
+            if result.valid:
+                return layout
+            errors.append({"variant": candidate or "default", "errors": result.errors})
+        raise HTTPException(status_code=400, detail={"message": "Unable to build a valid layout", "attempts": errors})
 
     def approve_page(self, db: Session, page_id: str) -> Page:
         page = self.get_page(db, page_id)
@@ -460,7 +474,7 @@ class PageService:
             current_text, overflow_text = self.pagination_engine.split_text_for_page(text, capacity)
             setattr(current, active_field, current_text)
             if not current.selected_layout_option_id:
-                current.layout_json = self.layout_engine.build_layout(book=current.book, page=current)
+                current.layout_json = self._validated_layout(current.book, current)
             md = dict(current.generation_metadata or {})
             md["pagination"] = {"estimated_capacity_words": capacity, "actual_words_on_page": len(current_text.split()), "overflow_words": len(overflow_text.split()) if overflow_text else 0, "pagination_reason": reason}
             current.generation_metadata = md
@@ -474,7 +488,7 @@ class PageService:
             next_md.update({"continued_from_page_id": current.id, "auto_continued": True, "repaginated_due_to": reason, "overflow_source_page_id": current.id})
             next_page.generation_metadata = next_md
             if not next_page.selected_layout_option_id:
-                next_page.layout_json = self.layout_engine.build_layout(book=next_page.book, page=next_page)
+                next_page.layout_json = self._validated_layout(next_page.book, next_page)
             current = next_page
             if idx == max_pages - 1 and overflow_text.strip():
                 final_md = dict(current.generation_metadata or {})
