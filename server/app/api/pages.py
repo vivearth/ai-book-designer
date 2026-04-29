@@ -1,10 +1,11 @@
 from __future__ import annotations
 
-from fastapi import APIRouter, Depends, File, Form, UploadFile
+from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile
 from sqlalchemy.orm import Session
 
 from app.core.database import get_db
 from app.models.schemas import GenerationRequest, GenerationResponse, LayoutOptionsGenerateRequest, LayoutOptionsResponse, PageCreate, PageImageRead, PageLayoutOptionRead, PageRead, PageUpdate
+from app.llm.providers.errors import ProviderError
 from app.services.page_service import PageService
 
 router = APIRouter(tags=["pages"])
@@ -33,7 +34,10 @@ def update_page(page_id: str, payload: PageUpdate, db: Session = Depends(get_db)
 
 @router.post("/pages/{page_id}/generate", response_model=GenerationResponse)
 async def generate_page(page_id: str, payload: GenerationRequest, db: Session = Depends(get_db)):
-    page, packet, notes, skill_output, source_refs, quality_report, warnings, overflow_created_page, overflow_warning = await service.generate_page(db, page_id, payload)
+    try:
+        page, packet, notes, skill_output, source_refs, quality_report, warnings, overflow_created_page, overflow_warning = await service.generate_page(db, page_id, payload)
+    except ProviderError as exc:
+        raise HTTPException(status_code=502, detail=str(exc)) from exc
     return GenerationResponse(
         page=page,
         context_packet=packet,

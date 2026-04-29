@@ -22,6 +22,7 @@ class Settings(BaseSettings):
     ollama_keep_alive: str = Field(default="5m", alias="OLLAMA_KEEP_ALIVE")
     ollama_stream: bool = Field(default=False, alias="OLLAMA_STREAM")
     llm_two_pass_enabled: bool = Field(default=True, alias="LLM_TWO_PASS_ENABLED")
+    llm_fallback_to_mock_on_provider_error: bool = Field(default=False, alias="LLM_FALLBACK_TO_MOCK_ON_PROVIDER_ERROR")
     llm_fast_mode: bool = Field(default=False, alias="LLM_FAST_MODE")
     default_llm_model: str | None = Field(default=None, alias="DEFAULT_LLM_MODEL")
     fiction_llm_model: str | None = Field(default=None, alias="FICTION_LLM_MODEL")

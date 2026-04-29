@@ -7,6 +7,7 @@ from app.llm.providers.errors import ProviderTimeoutError
 
 def test_ollama_timeout_config(monkeypatch):
     monkeypatch.setenv('LLM_PROVIDER', 'ollama')
+    monkeypatch.setenv('LLM_FALLBACK_TO_MOCK_ON_PROVIDER_ERROR', 'true')
     monkeypatch.setenv('OLLAMA_TIMEOUT_SECONDS', '321')
     get_settings.cache_clear()
     engine = LLMEngine()
@@ -36,6 +37,7 @@ def test_ollama_base_url_used_in_status(monkeypatch):
 
 def test_engine_timeout_falls_back_to_mock(monkeypatch):
     monkeypatch.setenv('LLM_PROVIDER', 'ollama')
+    monkeypatch.setenv('LLM_FALLBACK_TO_MOCK_ON_PROVIDER_ERROR', 'true')
     get_settings.cache_clear()
     engine = LLMEngine()
 
@@ -46,7 +48,7 @@ def test_engine_timeout_falls_back_to_mock(monkeypatch):
     text, notes = asyncio.run(engine.generate_text('Target words: 120'))
     assert isinstance(text, str)
     assert isinstance(notes, list)
-    assert any('timeout' in n for n in notes)
+    assert any('fallback_used=true' in n for n in notes)
 
 
 def test_fast_mode_skips_plan_pass(monkeypatch):
