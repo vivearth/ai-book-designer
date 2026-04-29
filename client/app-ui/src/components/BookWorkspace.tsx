@@ -329,7 +329,11 @@ export function BookWorkspace({ book, pages, setPages, refreshPages, onBack, onS
 
           {expertMode ? <QualityReportPanel report={qualityReport || undefined} warnings={warnings} /> : null}
         </div>
-        <BookPreviewPane book={book} pages={sortedPages} activeTarget={activeTarget} onSelectCover={() => setActiveTarget({ kind: 'cover' })} onSelectPage={(id) => setActiveTarget({ kind: 'page', pageId: id })} onCreateNextPage={() => void createNextPage()} />
+        <BookPreviewPane book={book} pages={sortedPages} activeTarget={activeTarget} onSelectCover={() => setActiveTarget({ kind: 'cover' })} onSelectPage={(id) => setActiveTarget({ kind: 'page', pageId: id })} onCreateNextPage={() => void createNextPage()} onImageSelect={() => setActiveRailPanel('images')} onTextSave={async (page, nextText) => {
+          const field = page.final_text ? 'final_text' : (page.generated_text ? 'generated_text' : 'user_text')
+          await api.updatePage(page.id, { [field]: nextText } as Partial<Page>)
+          await refreshPages()
+        }} />
       </div>
       {expertMode && sourcesOpen && book.project_id ? (
         <div className="export-modal-backdrop" role="dialog" aria-modal="true">

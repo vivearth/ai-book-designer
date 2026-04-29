@@ -90,6 +90,8 @@ Model identifier note:
 - `LLM_FAST_MODE=true` (recommended on small GPUs/CPU-only)
 - `LLM_TWO_PASS_ENABLED=false` (recommended for faster demo runs)
 - Nginx API proxy timeout is set to `300s` in `client/app-ui/nginx.conf`
+- Nginx API proxy upload size is set to `12m` (`client_max_body_size`) for `/api` uploads.
+- Large browser uploads are accepted up to 12 MB at proxy; backend optimizes images before saving to `data/uploads`.
 
 ### Troubleshooting: Ollama 500 after 2 minutes (only when `LLM_PROVIDER=ollama`)
 
