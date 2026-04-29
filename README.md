@@ -52,7 +52,7 @@ PYTHONPATH=server pytest server/tests -q
 
 A **Skill** is a reusable capability. Output varies by project context (sources, direction, brand profile, format profile), not by one-off UI prompt hacks.
 
-## Local model routing and quality (Ollama)
+## LLM model routing and quality
 
 Generation quality depends heavily on local model choice. The app supports per-skill model routing:
 
@@ -61,7 +61,7 @@ Generation quality depends heavily on local model choice. The app supports per-s
 - `FINANCE_LLM_MODEL` → finance pages
 - `GENERAL_LLM_MODEL` → general/educational pages
 - `QUALITY_LLM_MODEL` → quality tasks (future-safe route)
-- fallback order: skill model → `DEFAULT_LLM_MODEL` → `OLLAMA_MODEL`
+- fallback order: skill model → `DEFAULT_LLM_MODEL` → provider default
 
 Recommended local models:
 
@@ -71,7 +71,18 @@ Recommended local models:
 
 The app uses **two-pass generation** (plan beats, then prose) for stronger page-level quality without paid APIs or fine-tuning. For slower machines, set `LLM_FAST_MODE=true` to run one-pass generation.
 
-### CPU-friendly Ollama settings
+Provider defaults:
+
+- `ollama` provider → `OLLAMA_MODEL`
+- `hf` provider → `HF_MODEL`
+- `mock` provider → built-in mock fallback
+
+Model identifier note:
+
+- HF provider expects Hugging Face model IDs (for example `mistralai/Mistral-7B-Instruct-v0.3`).
+- Ollama provider expects Ollama model tags (for example `qwen2.5:3b-instruct`).
+
+### CPU-friendly Ollama settings (only when `LLM_PROVIDER=ollama`)
 
 - `OLLAMA_TIMEOUT_SECONDS=300`
 - `OLLAMA_NUM_CTX=2048`
@@ -80,7 +91,7 @@ The app uses **two-pass generation** (plan beats, then prose) for stronger page-
 - `LLM_TWO_PASS_ENABLED=false` (recommended for faster demo runs)
 - Nginx API proxy timeout is set to `300s` in `client/app-ui/nginx.conf`
 
-### Troubleshooting: Ollama 500 after 2 minutes
+### Troubleshooting: Ollama 500 after 2 minutes (only when `LLM_PROVIDER=ollama`)
 
 Symptom in Ollama logs:
 
@@ -110,7 +121,7 @@ docker exec -it book_designer_ollama ollama pull qwen2.5:3b-instruct
 docker compose --profile llm up --build
 ```
 
-### Ollama warmup for first-request latency
+### Ollama warmup for first-request latency (only when `LLM_PROVIDER=ollama`)
 
 When running with `--profile llm`, compose starts an `ollama-warmup` service that:
 
@@ -192,3 +203,23 @@ Current MVP constraints:
 - No drag/drop freeform editing yet.
 - Layout options are deterministic structured variants, with optional AI-assisted rationale when available.
 - Global style consistency across all pages can be improved further in future iterations.
+
+
+## LLM provider switching
+
+Set `LLM_PROVIDER` to one of:
+- `mock`
+- `ollama`
+- `hf`
+
+Run without Ollama (mock or HF):
+```bash
+docker compose up --build
+```
+
+Run with Ollama container:
+```bash
+docker compose --profile llm up --build
+```
+
+Hugging Face does not require the Ollama container. Required HF vars: `HF_API_TOKEN` and optionally `HF_MODEL`, `HF_BASE_URL`, `HF_TIMEOUT_SECONDS`, `HF_MAX_NEW_TOKENS`.

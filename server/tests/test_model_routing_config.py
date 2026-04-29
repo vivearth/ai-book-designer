@@ -5,7 +5,7 @@ from app.engines.llm_engine import LLMEngine
 
 
 def test_model_routing_config(monkeypatch):
-    monkeypatch.setenv('MODEL_PROVIDER', 'ollama')
+    monkeypatch.setenv('LLM_PROVIDER', 'ollama')
     monkeypatch.setenv('OLLAMA_MODEL', 'legacy-model')
     monkeypatch.setenv('DEFAULT_LLM_MODEL', 'default-model')
     monkeypatch.setenv('FICTION_LLM_MODEL', 'fiction-model')
@@ -19,7 +19,7 @@ def test_model_routing_config(monkeypatch):
         seen['model'] = model
         return 'ok output'
 
-    monkeypatch.setattr(engine, '_ollama_generate', fake_generate)
+    monkeypatch.setattr(engine.provider, 'generate_text', fake_generate)
 
     asyncio.run(engine.generate_text('x', purpose='fiction'))
     assert seen['model'] == 'fiction-model'

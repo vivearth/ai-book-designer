@@ -13,7 +13,7 @@ class Settings(BaseSettings):
         default="sqlite:///./data/book_designer.db",
         alias="DATABASE_URL",
     )
-    model_provider: str = Field(default="mock", alias="MODEL_PROVIDER")
+    llm_provider: str = Field(default="mock", alias="LLM_PROVIDER")
     ollama_base_url: str = Field(default="http://ollama:11434", alias="OLLAMA_BASE_URL")
     ollama_model: str = Field(default="qwen2.5:3b-instruct", alias="OLLAMA_MODEL")
     ollama_timeout_seconds: float = Field(default=300, alias="OLLAMA_TIMEOUT_SECONDS")
@@ -29,6 +29,14 @@ class Settings(BaseSettings):
     finance_llm_model: str | None = Field(default=None, alias="FINANCE_LLM_MODEL")
     general_llm_model: str | None = Field(default=None, alias="GENERAL_LLM_MODEL")
     quality_llm_model: str | None = Field(default=None, alias="QUALITY_LLM_MODEL")
+    hf_api_token: str | None = Field(default=None, alias="HF_API_TOKEN")
+    hf_base_url: str = Field(default="https://api-inference.huggingface.co/models", alias="HF_BASE_URL")
+    hf_model: str = Field(default="mistralai/Mistral-7B-Instruct-v0.3", alias="HF_MODEL")
+    hf_timeout_seconds: float = Field(default=90, alias="HF_TIMEOUT_SECONDS")
+    hf_max_new_tokens: int = Field(default=320, alias="HF_MAX_NEW_TOKENS")
+    hf_retry_attempts: int = Field(default=3, alias="HF_RETRY_ATTEMPTS")
+    hf_retry_backoff_seconds: float = Field(default=1.0, alias="HF_RETRY_BACKOFF_SECONDS")
+    hf_chat_template: str = Field(default="plain", alias="HF_CHAT_TEMPLATE")
     server_cors_origins: str = Field(
         default="http://localhost:5173,http://localhost:3000,http://localhost:8080",
         alias="SERVER_CORS_ORIGINS",
@@ -50,6 +58,10 @@ class Settings(BaseSettings):
     @property
     def cors_origins(self) -> list[str]:
         return [item.strip() for item in self.server_cors_origins.split(",") if item.strip()]
+
+    @property
+    def active_llm_provider(self) -> str:
+        return self.llm_provider.lower().strip() or "mock"
 
 
 @lru_cache

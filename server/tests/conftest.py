@@ -9,7 +9,7 @@ DB_PATH.parent.mkdir(parents=True, exist_ok=True)
 if DB_PATH.exists():
     DB_PATH.unlink()
 os.environ['DATABASE_URL'] = f"sqlite:///{DB_PATH}"
-os.environ['MODEL_PROVIDER'] = 'mock'
+os.environ['LLM_PROVIDER'] = 'mock'
 
 from app.main import app  # noqa: E402
 
