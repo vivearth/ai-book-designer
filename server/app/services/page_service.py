@@ -13,6 +13,7 @@ from app.core.config import get_settings
 from app.engines.context_engine import ContextEngine
 from app.engines.layout_engine import LayoutEngine
 from app.engines.layout_option_engine import LayoutOptionEngine, LayoutOptionInput
+from app.engines.layout_validator import LayoutValidator
 from app.engines.page_capacity_engine import PageCapacityEngine
 from app.engines.llm_engine import LLMEngine
 from app.engines.memory_engine import MemoryEngine
@@ -31,6 +32,7 @@ class PageService:
         self.layout_engine = LayoutEngine()
         self.memory_engine = MemoryEngine()
         self.layout_option_engine = LayoutOptionEngine()
+        self.layout_validator = LayoutValidator()
         self.llm_engine = LLMEngine()
         self.source_retrieval_engine = SourceRetrievalEngine()
         self.text_quality_engine = TextQualityEngine()
@@ -80,7 +82,7 @@ class PageService:
         for key, value in updates.items():
             setattr(page, key, value)
         if not page.selected_layout_option_id:
-            page.layout_json = self.layout_engine.build_layout(book=page.book, page=page)
+            page.layout_json = self._validated_layout(page.book, page)
         if text_changed:
             self.repaginate_from_page(db, page, reason="manual_text_edit")
         if page.final_text or page.generated_text:
@@ -215,7 +217,7 @@ class PageService:
         page.generated_text = current_text
         page.status = "generated"
         if not page.selected_layout_option_id:
-            page.layout_json = self.layout_engine.build_layout(book=book, page=page)
+            page.layout_json = self._validated_layout(book, page)
         if overflow_text.strip():
             next_page = db.query(Page).filter(Page.book_id == book.id, Page.page_number == page.page_number + 1).first()
             existed = next_page is not None
@@ -224,7 +226,7 @@ class PageService:
                 overflow_created_page = next_page
             self._prepend_overflow_to_page(next_page, overflow_text, "generated_text", "generate_overflow", page.id)
             if not next_page.selected_layout_option_id:
-                next_page.layout_json = self.layout_engine.build_layout(book=book, page=next_page)
+                next_page.layout_json = self._validated_layout(book, next_page)
             self.repaginate_from_page(db, next_page, reason="generate_overflow")
             if existed:
                 overflow_warning = "Generated text overflow was merged into existing next page."
@@ -337,7 +339,9 @@ class PageService:
 
         option.selected_at = utc_now()
         page.selected_layout_option_id = option.id
-        page.layout_json = dict(option.layout_json or {})
+        selected_layout = dict(option.layout_json or {})
+        self.layout_validator.assert_valid_layout(selected_layout, page=page, text=(page.final_text or page.generated_text or page.user_text or ""))
+        page.layout_json = selected_layout
         page.layout_json["layout_option_id"] = option.id
         metadata = dict(page.generation_metadata or {})
         metadata["selected_layout_option_id"] = option.id
@@ -347,12 +351,25 @@ class PageService:
         db.refresh(page)
         return page
 
+
+    def _validated_layout(self, book: Book, page: Page, variant: str | None = None) -> dict:
+        layout = self.layout_engine.build_layout(book=book, page=page, variant=variant)
+        text = page.final_text or page.generated_text or page.user_text or ""
+        result = self.layout_validator.validate_layout(layout, page=page, text=text)
+        layout["validation"] = result.to_dict()
+        if not result.valid:
+            fallback = self.layout_engine.build_layout(book=book, page=page)
+            fallback_result = self.layout_validator.assert_valid_layout(fallback, page=page, text=text)
+            fallback["validation"] = fallback_result.to_dict()
+            return fallback
+        return layout
+
     def approve_page(self, db: Session, page_id: str) -> Page:
         page = self.get_page(db, page_id)
         page.final_text = page.final_text or page.generated_text or page.user_text
         page.status = "approved"
         if not page.selected_layout_option_id:
-            page.layout_json = self.layout_engine.build_layout(book=page.book, page=page)
+            page.layout_json = self._validated_layout(page.book, page)
         self.memory_engine.update_after_page(db, book=page.book, page=page)
         db.commit()
         db.refresh(page)
@@ -419,7 +436,7 @@ class PageService:
         metadata["image_uploads"] = uploads
         page.generation_metadata = metadata
         if not page.selected_layout_option_id:
-            page.layout_json = self.layout_engine.build_layout(book=page.book, page=page)
+            page.layout_json = self._validated_layout(page.book, page)
         self.repaginate_from_page(db, page, reason="image_added")
         db.commit()
         db.refresh(image)
