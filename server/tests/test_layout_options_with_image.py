@@ -1,4 +1,5 @@
 from io import BytesIO
+from PIL import Image
 
 
 def test_layout_options_with_image(client):
@@ -10,7 +11,7 @@ def test_layout_options_with_image(client):
 
     upload = client.post(
         f"/api/pages/{page['id']}/images",
-        files={'file': ('photo.png', BytesIO(b'fake-image-data'), 'image/png')},
+        files={'file': ('photo.png', _png_bytes(), 'image/png')},
     )
     assert upload.status_code == 200
 
@@ -19,3 +20,11 @@ def test_layout_options_with_image(client):
 
     assert any('image_' in variant for variant in variants)
     assert len(set(variants)) == 2
+
+
+def _png_bytes():
+    img = Image.new("RGB", (32, 32), color=(255, 0, 0))
+    bio = BytesIO()
+    img.save(bio, format="PNG")
+    bio.seek(0)
+    return bio

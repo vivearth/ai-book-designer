@@ -11,7 +11,9 @@ def test_generate_overflow_updates_existing_final_text_page(client):
     pages = client.get(f"/api/books/{book['id']}/pages").json()
     next_page = [p for p in pages if p['page_number'] == 2][0]
     assert next_page['final_text']
-    assert 'Existing final page text' in next_page['final_text']
+    assert next_page['final_text'].endswith('Existing final page text')
+    assert len(next_page['final_text']) > len('Existing final page text')
+    assert not next_page.get('generated_text')
 
 
 def test_generate_overflow_to_blank_next_page_sets_generated(client):

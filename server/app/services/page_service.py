@@ -231,7 +231,8 @@ class PageService:
                 warnings.append(overflow_warning)
         source_refs = content.get("source_refs", [])
         llm_notes = [n for n in (skill_result.notes or []) if isinstance(n, str) and (n.startswith("provider=") or n.startswith("model=") or n.startswith("model_source=") or n.startswith("llm_elapsed_ms=") or "fallback" in n.lower())]
-        page.generation_metadata = {
+        metadata = dict(page.generation_metadata or {})
+        metadata.update({
             "skill_id": skill_id,
             "llm_provider": self.llm_engine.provider.name,
             "llm_model": next((n.split("=",1)[1] for n in llm_notes if n.startswith("model=")), None),
@@ -251,7 +252,8 @@ class PageService:
             "page_capacity_hint": request.page_capacity_hint.model_dump() if request.page_capacity_hint else None,
             "word_budget_reason": word_budget_reason,
             "overflow_text": overflow_text if (overflow_text and not overflow_created_page) else None,
-        }
+        })
+        page.generation_metadata = metadata
         self.memory_engine.update_after_page(db, book=book, page=page)
 
         packet = self.context_engine.build_context_packet(
@@ -365,33 +367,11 @@ class PageService:
         if len(contents) > settings.max_upload_image_bytes:
             raise HTTPException(status_code=413, detail=f"Image upload exceeds max size of {settings.max_upload_image_bytes} bytes.")
         original_size = len(contents)
-        decode_failed = False
         try:
             img = Image.open(BytesIO(contents))
             img = ImageOps.exif_transpose(img)
-        except Exception:
-            decode_failed = True
-            img = None
-        if decode_failed:
-            ext = "png" if "png" in (file.content_type or "") else "jpg"
-            stored_filename = f"{new_id('upload')}.{ext}"
-            output_path = settings.upload_dir / stored_filename
-            output_path.write_bytes(contents)
-            image = PageImage(
-                page_id=page.id,
-                original_filename=file.filename or stored_filename,
-                stored_filename=stored_filename,
-                content_type=file.content_type or f"image/{'jpeg' if ext == 'jpg' else ext}",
-                caption=caption,
-            )
-            db.add(image)
-            db.flush()
-            db.expire(page, ["images"])
-            if not page.selected_layout_option_id:
-                page.layout_json = self.layout_engine.build_layout(book=page.book, page=page)
-            db.commit()
-            db.refresh(image)
-            return image
+        except Exception as exc:
+            raise HTTPException(status_code=400, detail="Invalid image payload.") from exc
         max_dim = max(img.width, img.height)
         if max_dim > settings.max_stored_image_dimension:
             scale = settings.max_stored_image_dimension / max_dim
@@ -473,10 +453,11 @@ class PageService:
             if not next_page.selected_layout_option_id:
                 next_page.layout_json = self.layout_engine.build_layout(book=next_page.book, page=next_page)
             current = next_page
-            if idx == max_pages - 1:
+            if idx == max_pages - 1 and overflow_text.strip():
                 final_md = dict(current.generation_metadata or {})
                 pagination = dict(final_md.get("pagination") or {})
                 pagination["warning"] = f"Repagination stopped after {max_pages} pages; overflow may remain."
+                pagination["overflow_words_remaining_estimate"] = len(overflow_text.split())
                 final_md["pagination"] = pagination
                 current.generation_metadata = final_md
 
