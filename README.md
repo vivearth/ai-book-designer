@@ -224,6 +224,18 @@ docker compose --profile llm up --build
 
 Hugging Face does not require the Ollama container. Required HF vars: `HF_API_TOKEN` and optionally `HF_MODEL`, `HF_BASE_URL`, `HF_TIMEOUT_SECONDS`, `HF_MAX_NEW_TOKENS`.
 
+Quick HF verification from host:
+
+```bash
+curl http://localhost:8000/api/llm/status
+curl -X POST http://localhost:8000/api/llm/test-generate \
+  -H "Content-Type: application/json" \
+  -d "{\"prompt\":\"Say hello in one sentence.\"}"
+```
+
+If you see `Cannot POST /models/...` with status 404, the app is still using the legacy non-chat HF endpoint. The chat model flow must use `https://router.huggingface.co/v1/chat/completions`.
+
+
 
 ## Verifying selected LLM provider
 
