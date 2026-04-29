@@ -1,8 +1,10 @@
 from __future__ import annotations
 
 import re
+from io import BytesIO
 
 from fastapi import HTTPException, UploadFile
+from PIL import Image, ImageOps
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
@@ -11,6 +13,7 @@ from app.core.config import get_settings
 from app.engines.context_engine import ContextEngine
 from app.engines.layout_engine import LayoutEngine
 from app.engines.layout_option_engine import LayoutOptionEngine, LayoutOptionInput
+from app.engines.page_capacity_engine import PageCapacityEngine
 from app.engines.llm_engine import LLMEngine
 from app.engines.memory_engine import MemoryEngine
 from app.engines.source_retrieval_engine import SourceRetrievalEngine
@@ -32,6 +35,7 @@ class PageService:
         self.source_retrieval_engine = SourceRetrievalEngine()
         self.text_quality_engine = TextQualityEngine()
         self.pagination_engine = TextPaginationEngine()
+        self.page_capacity_engine = PageCapacityEngine()
         self.skill_registry = build_skill_registry()
 
     def get_book(self, db: Session, book_id: str) -> Book:
@@ -91,6 +95,7 @@ class PageService:
         draft_layout = self.layout_engine.build_layout(book=book, page=page)
         composition = draft_layout.get("composition", "text_only")
         computed_target_words, word_budget_reason = self.layout_engine.estimate_target_words(book=book, page=page, composition=composition)
+        computed_target_words = min(computed_target_words, self.page_capacity_engine.estimate_capacity_words(book, page, composition))
         target_words = request.target_words if request.target_words is not None else computed_target_words
         if request.page_capacity_hint:
             hinted = max(40, min(520, int(request.page_capacity_hint.estimated_words)))
@@ -153,7 +158,10 @@ class PageService:
                 .first()
             )
             if next_page:
-                overflow_warning = "Generated text overflowed but next page already exists; overflow was not written automatically."
+                next_active = next_page.final_text or next_page.generated_text or next_page.user_text or ""
+                next_page.generated_text = f"{overflow_text.strip()}\n\n{next_active}".strip()
+                next_page.layout_json = self.layout_engine.build_layout(book=book, page=next_page)
+                overflow_warning = "Generated text overflow was merged into existing next page."
                 warnings.append(overflow_warning)
             else:
                 overflow_created_page = self.create_page(
@@ -364,26 +372,94 @@ class PageService:
     async def upload_image(self, db: Session, page_id: str, file: UploadFile, caption: str | None = None) -> PageImage:
         page = self.get_page(db, page_id)
         settings = get_settings()
-        suffix = ""
-        if file.filename and "." in file.filename:
-            suffix = "." + file.filename.rsplit(".", maxsplit=1)[-1]
+        contents = await file.read()
+        if not (file.content_type or "").startswith("image/"):
+            raise HTTPException(status_code=400, detail="Only image uploads are allowed.")
+        if len(contents) > settings.max_upload_image_bytes:
+            raise HTTPException(status_code=413, detail=f"Image upload exceeds max size of {settings.max_upload_image_bytes} bytes.")
+        original_size = len(contents)
+        try:
+            img = Image.open(BytesIO(contents))
+            img = ImageOps.exif_transpose(img)
+        except Exception as exc:
+            raise HTTPException(status_code=400, detail="Invalid image payload.") from exc
+        max_dim = max(img.width, img.height)
+        if max_dim > settings.max_stored_image_dimension:
+            scale = settings.max_stored_image_dimension / max_dim
+            img = img.resize((int(img.width * scale), int(img.height * scale)))
+        fmt = settings.preferred_image_format.lower().strip()
+        has_alpha = img.mode in ("RGBA", "LA") or ("transparency" in img.info)
+        if fmt == "webp":
+            ext, save_fmt = "webp", "WEBP"
+        elif has_alpha:
+            ext, save_fmt = "png", "PNG"
+        else:
+            ext, save_fmt = "jpg", "JPEG"
+        if save_fmt == "JPEG" and img.mode != "RGB":
+            img = img.convert("RGB")
+        suffix = f".{ext}"
         stored_filename = f"{new_id('upload')}{suffix}"
         output_path = settings.upload_dir / stored_filename
-        contents = await file.read()
-        output_path.write_bytes(contents)
+        output = BytesIO()
+        save_kwargs = {"quality": settings.image_webp_quality if save_fmt == "WEBP" else settings.image_jpeg_quality}
+        if save_fmt == "PNG":
+            save_kwargs = {}
+        img.save(output, format=save_fmt, **save_kwargs)
+        output_path.write_bytes(output.getvalue())
         image = PageImage(
             page_id=page.id,
             original_filename=file.filename or stored_filename,
             stored_filename=stored_filename,
             content_type=file.content_type,
             caption=caption,
+            metadata_json={
+                "width": img.width,
+                "height": img.height,
+                "optimized_size_bytes": len(output.getvalue()),
+                "original_size_bytes": original_size,
+            },
         )
         db.add(image)
         if not page.selected_layout_option_id:
             page.layout_json = self.layout_engine.build_layout(book=page.book, page=page)
+        self.repaginate_page_after_layout_change(db, page, reason="image_added")
         db.commit()
         db.refresh(image)
         return image
+
+    def repaginate_page_after_layout_change(self, db: Session, page: Page, reason: str = "layout_change") -> None:
+        active_field = "final_text" if page.final_text else ("generated_text" if page.generated_text else "user_text")
+        text = getattr(page, active_field) or ""
+        if not text.strip():
+            return
+        composition = (page.layout_json or {}).get("composition", "text_only")
+        capacity = self.page_capacity_engine.estimate_capacity_words(page.book, page, composition)
+        current_text, overflow_text = self.pagination_engine.split_text_for_page(text, capacity)
+        setattr(page, active_field, current_text)
+        metadata = dict(page.generation_metadata or {})
+        metadata["pagination"] = {
+            "estimated_capacity_words": capacity,
+            "actual_words_on_page": len(current_text.split()),
+            "overflow_words": len(overflow_text.split()) if overflow_text else 0,
+            "pagination_reason": reason,
+        }
+        if overflow_text.strip():
+            next_page = db.query(Page).filter(Page.book_id == page.book_id, Page.page_number == page.page_number + 1).first()
+            if next_page:
+                next_field = "final_text" if next_page.final_text else ("generated_text" if next_page.generated_text else "user_text")
+                existing = getattr(next_page, next_field) or ""
+                setattr(next_page, next_field, f"{overflow_text.strip()}\n\n{existing}".strip())
+                metadata["pagination"]["overflow_target_page_id"] = next_page.id
+            else:
+                next_page = self.create_page(db, page.book_id, PageCreate(page_number=page.page_number + 1, user_prompt=f"Continuation from page {page.page_number}"))
+                if active_field in {"generated_text", "final_text"}:
+                    next_page.generated_text = overflow_text
+                    next_page.status = "generated"
+                else:
+                    next_page.user_text = overflow_text
+                next_page.layout_json = self.layout_engine.build_layout(book=page.book, page=next_page)
+                metadata["pagination"]["overflow_target_page_id"] = next_page.id
+        page.generation_metadata = metadata
 
     def _resolve_skill_id(self, requested: str | None, content_mode: str | None, project: Project | None, book: Book) -> str:
         if requested:
