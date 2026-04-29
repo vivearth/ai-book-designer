@@ -235,8 +235,15 @@ class PageService:
         if not page.selected_layout_option_id:
             page.layout_json = self.layout_engine.build_layout(book=book, page=page)
         source_refs = content.get("source_refs", [])
+        llm_notes = [n for n in (skill_result.notes or []) if isinstance(n, str) and (n.startswith("provider=") or n.startswith("model=") or n.startswith("model_source=") or n.startswith("llm_elapsed_ms=") or "fallback" in n.lower())]
         page.generation_metadata = {
             "skill_id": skill_id,
+            "llm_provider": self.llm_engine.provider.name,
+            "llm_model": next((n.split("=",1)[1] for n in llm_notes if n.startswith("model=")), None),
+            "llm_notes": llm_notes,
+            "llm_elapsed_ms": next((int(n.split("=",1)[1]) for n in llm_notes if n.startswith("llm_elapsed_ms=")), None),
+            "llm_fallback_used": any("fallback_used=true" in n for n in llm_notes),
+            "llm_error": next((n for n in llm_notes if n.startswith("fallback_reason=")), None),
             "source_refs": source_refs,
             "quality_report": quality_report,
             "headline": content.get("headline"),

@@ -223,3 +223,26 @@ docker compose --profile llm up --build
 ```
 
 Hugging Face does not require the Ollama container. Required HF vars: `HF_API_TOKEN` and optionally `HF_MODEL`, `HF_BASE_URL`, `HF_TIMEOUT_SECONDS`, `HF_MAX_NEW_TOKENS`.
+
+
+## Verifying selected LLM provider
+
+Debug endpoints:
+- `GET /api/llm/status`
+- `POST /api/llm/test-generate`
+
+`LLM_FALLBACK_TO_MOCK_ON_PROVIDER_ERROR=false` by default (visible provider failures).
+Enable fallback for demos only by setting `LLM_FALLBACK_TO_MOCK_ON_PROVIDER_ERROR=true`.
+
+
+Use these checks from a running container:
+
+```bash
+docker exec -it book_designer_server sh -c "env | grep -E 'LLM_PROVIDER|HF_|DEFAULT_LLM_MODEL|FICTION_LLM_MODEL'"
+docker exec -it book_designer_server python -c "from app.engines.llm_engine import LLMEngine; import asyncio; print(asyncio.run(LLMEngine().get_provider_status()))"
+```
+
+Notes:
+- Provider errors fail visibly by default (HTTP 502), so HF/Ollama failures are not silently masked.
+- Set `LLM_FALLBACK_TO_MOCK_ON_PROVIDER_ERROR=true` only for demos.
+- HF models must be Hugging Face model IDs (for example `Qwen/Qwen2.5-7B-Instruct`), not Ollama tags.

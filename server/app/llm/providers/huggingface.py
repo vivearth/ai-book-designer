@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import asyncio
+import logging
 import time
 from typing import Any
 
@@ -9,7 +10,9 @@ import httpx
 from app.core.config import Settings
 
 from .base import BaseProvider
-from .errors import ProviderConfigurationError, ProviderHTTPError, ProviderTimeoutError
+from .errors import ProviderConfigurationError, ProviderError, ProviderHTTPError, ProviderTimeoutError
+
+logger = logging.getLogger(__name__)
 
 
 class HuggingFaceProvider(BaseProvider):
@@ -42,52 +45,37 @@ class HuggingFaceProvider(BaseProvider):
                 for item in payload["data"]:
                     if isinstance(item, dict) and item.get("generated_text"):
                         return str(item["generated_text"]).strip()
-        return ""
+        raise ProviderError("HF response missing generated_text in known response shapes.")
 
     async def generate_text(self, prompt: str, *, temperature: float, model: str, purpose: str | None = None) -> str:
         _ = purpose
         self._require_token()
         url = f"{self.settings.hf_base_url.rstrip('/')}/{model}"
-        headers = {"Authorization": f"Bearer {self.settings.hf_api_token}"} if self.settings.hf_api_token else {}
-        payload = {
-            "inputs": self._format_prompt(prompt),
-            "parameters": {"temperature": temperature, "max_new_tokens": self.settings.hf_max_new_tokens, "return_full_text": False},
-            "options": {"wait_for_model": True},
-        }
-        timeout = httpx.Timeout(self.settings.hf_timeout_seconds)
-        attempts = max(1, self.settings.hf_retry_attempts)
-        backoff = self.settings.hf_retry_backoff_seconds
-        async with httpx.AsyncClient(timeout=timeout) as client:
-            for idx in range(attempts):
+        headers = {"Authorization": f"Bearer {self.settings.hf_api_token}"}
+        payload = {"inputs": self._format_prompt(prompt), "parameters": {"temperature": temperature, "max_new_tokens": self.settings.hf_max_new_tokens, "return_full_text": False}, "options": {"wait_for_model": True}}
+        async with httpx.AsyncClient(timeout=httpx.Timeout(self.settings.hf_timeout_seconds)) as client:
+            for idx in range(max(1, self.settings.hf_retry_attempts)):
                 try:
                     resp = await client.post(url, headers=headers, json=payload)
-                    if resp.status_code == 503 and idx < attempts - 1:
-                        estimated = min(float(resp.json().get("estimated_time", backoff)), 20.0)
-                        await asyncio.sleep(max(backoff, estimated))
+                    if resp.status_code == 503 and idx < self.settings.hf_retry_attempts - 1:
+                        wait = self.settings.hf_retry_backoff_seconds
+                        try:
+                            wait = max(wait, min(float((resp.json() or {}).get("estimated_time", wait)), 20.0))
+                        except Exception:
+                            pass
+                        await asyncio.sleep(wait)
                         continue
-                    resp.raise_for_status()
+                    if resp.status_code >= 400:
+                        body = (resp.text or "")[:400]
+                        logger.warning("HF request failed status=%s body_preview=%s", resp.status_code, body)
+                        raise ProviderHTTPError("HF request failed", status=resp.status_code, body_preview=body)
                     return self._extract_generated(resp.json())
                 except httpx.TimeoutException as exc:
                     raise ProviderTimeoutError(str(exc)) from exc
-                except httpx.HTTPStatusError as exc:
-                    if exc.response.status_code == 503 and idx < attempts - 1:
-                        await asyncio.sleep(backoff)
-                        continue
-                    raise ProviderHTTPError(exc.response.text[:400]) from exc
-        raise ProviderHTTPError("HF inference unavailable after retries")
+        raise ProviderHTTPError("HF inference unavailable after retries", status=503)
 
     async def get_status(self) -> dict[str, Any]:
-        return {
-            "provider": self.name,
-            "base_url": self.settings.hf_base_url,
-            "configured_model": self.settings.hf_model,
-            "token_configured": bool(self.settings.hf_api_token),
-            "available": bool(self.settings.hf_api_token),
-            "models": [self.settings.hf_model],
-            "configured_model_present": bool(self.settings.hf_model),
-            "warmup_recommended": False,
-            "recommendations": [] if self.settings.hf_api_token else ["Set HF_API_TOKEN to enable Hugging Face Inference API."],
-        }
+        return {"available": bool(self.settings.hf_api_token)}
 
     async def warmup(self, model: str | None = None) -> dict[str, Any]:
         started = time.perf_counter()
