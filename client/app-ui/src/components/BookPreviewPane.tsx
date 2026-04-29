@@ -25,16 +25,6 @@ export function BookPreviewPane({ book, pages, activeTarget, onSelectCover, onSe
         <PageNavigator pages={pages} activeTarget={activeTarget} onSelectCover={onSelectCover} onSelectPage={onSelectPage} onCreateNext={onCreateNextPage} />
       </div>
       <div className="preview-workspace">
-        <aside className="page-thumbnail-strip">
-          <button type="button" className={`thumb-card ${activeTarget.kind === 'cover' ? 'is-active' : ''}`} onClick={onSelectCover}>
-            <span>C</span>
-          </button>
-          {pages.map((page) => (
-            <button key={page.id} type="button" className={`thumb-card ${activeTarget.kind === 'page' && activeTarget.pageId === page.id ? 'is-active' : ''}`} onClick={() => onSelectPage(page.id)}>
-              <span>{page.page_number}</span>
-            </button>
-          ))}
-        </aside>
         <div className="book-stage">
           <div className="book-stage__shadow" />
           <div className="book-sheet">
