@@ -19,7 +19,7 @@ def test_model_routing_config(monkeypatch):
         seen['model'] = model
         return 'ok output'
 
-    monkeypatch.setattr(engine, '_ollama_generate', fake_generate)
+    monkeypatch.setattr(engine.provider, 'generate_text', fake_generate)
 
     asyncio.run(engine.generate_text('x', purpose='fiction'))
     assert seen['model'] == 'fiction-model'
