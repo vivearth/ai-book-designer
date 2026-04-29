@@ -1189,6 +1189,46 @@ input, textarea, select, .ui-field input, .ui-field textarea {
 .layout-card strong { margin-bottom: .4rem; }
 .layout-card p { line-height: 1.45; }
 
+/* Studio consistency pass across wizard + workspace */
+.wizard-shell, .workspace-shell { position: relative; }
+.wizard-card { background: rgba(14, 9, 29, 0.92) !important; border: 1px solid rgba(167, 139, 250, 0.26) !important; }
+.wizard-header h2 { font-size: clamp(1.7rem, 2.4vw, 2.2rem); }
+.wizard-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 0.85rem; }
+.book-type-card { min-height: 172px; padding: 1rem; }
+.book-type-card p { margin: 0.45rem 0 0; font-size: 0.9rem; color: var(--text-muted); }
+.book-type-card .chip { font-size: 0.72rem; }
+.mode-hero-card { min-height: 190px; }
+.wizard-details-grid { gap: 1rem; align-items: start; }
+.wizard-details-grid > div { padding: 1rem; border-radius: 18px; background: rgba(17,11,33,.65); border: 1px solid rgba(196,181,253,.2); }
+.helper-card { border-radius: 18px !important; padding: 1.1rem !important; }
+.layout-selector { gap: 0.85rem; }
+.layout-card__mini-preview { min-height: 160px; }
+
+.workspace-topbar { display: grid; grid-template-columns: auto 1fr auto; align-items: center; }
+.workspace-back-button { opacity: 0.9; }
+.workspace-topbar h1 { font-size: clamp(1.3rem, 2vw, 1.8rem); margin: 0.2rem 0; }
+.workspace-topbar-actions { display: flex; align-items: center; gap: 0.6rem; }
+.workspace-projects { display: flex; gap: 0.35rem; }
+.project-dot { width: 30px; height: 30px; border-radius: 999px; background: rgba(34,22,62,.82); border: 1px solid rgba(196,181,253,.26); color: #dcd2ff; padding: 0 !important; box-shadow: none !important; }
+.project-dot.is-active { border-color: rgba(244, 114, 182, 0.9); background: rgba(97,49,190,.85); }
+
+.page-editor-panel .panel-tabs { background: rgba(17,11,33,.68); padding: 0.35rem; border-radius: 14px; border: 1px solid rgba(196,181,253,.2); }
+.panel-tabs button { font-weight: 600; }
+.chat-pane .chat-actions--secondary .ghost-button { background: rgba(13, 9, 24, 0.62) !important; opacity: 0.9; }
+.chat-pane label { color: #e9ddff; font-weight: 500; font-size: 0.92rem; }
+
+.file-input-dropzone { margin-top: 0.5rem; padding: 1.1rem; border-radius: 14px; border: 1px dashed rgba(196,181,253,.4); background: rgba(18,12,33,.55); text-align: center; }
+.file-chip { margin-top: 0.55rem; display: inline-flex; padding: 0.35rem 0.7rem; border-radius: 999px; background: rgba(97,49,190,.35); border: 1px solid rgba(196,181,253,.35); }
+
+.preview-pane__header { align-items: center; }
+.compact-toolbar { border-radius: 12px !important; padding: 0.25rem; background: rgba(15,10,29,.86) !important; border: 1px solid rgba(196,181,253,.22); }
+.compact-toolbar .page-count { min-width: 110px; font-size: 0.8rem; }
+
+@media (max-width: 980px) {
+  .wizard-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .workspace-topbar { grid-template-columns: 1fr; gap: 0.7rem; }
+}
+
 @media (max-width: 1180px) {
   .workspace-grid { grid-template-columns: 1fr !important; }
   .workspace-editor-shell { padding-left: 0; }

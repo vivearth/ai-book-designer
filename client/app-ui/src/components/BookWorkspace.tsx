@@ -232,11 +232,11 @@ export function BookWorkspace({ book, pages, setPages, refreshPages, onBack, onS
   return (
     <div className="workspace-shell studio-shell flow-background">
       <header className="workspace-topbar">
-        <button type="button" className="ghost-button" onClick={onBack}>Back</button>
+        <button type="button" className="ghost-button workspace-back-button" onClick={onBack}>← Back</button>
         <div>
           <p className="kicker">{book.creation_mode} mode · {bookType.displayName}</p>
           <h1>{book.title}</h1>
-          <small className="muted">Saved status syncs while you work.</small>
+            <small className="muted">Saved changes sync while you work.</small>
         </div>
         <div className="workspace-topbar-actions">
           {expertMode ? <button type="button" className="ghost-button" onClick={() => setSourcesOpen(true)}>Sources</button> : null}
@@ -272,6 +272,9 @@ export function BookWorkspace({ book, pages, setPages, refreshPages, onBack, onS
                   </button>
                 ))}
               </div>
+              <div className="chat-actions">
+                <button type="button" className="ghost-button" onClick={() => void createNextPage()} disabled={busy}>Add next page</button>
+              </div>
             </section>
           ) : null}
 
@@ -293,7 +296,8 @@ export function BookWorkspace({ book, pages, setPages, refreshPages, onBack, onS
           {activeRailPanel === 'layout' ? (
             <section className="glass-card rail-panel">
               <h3>Layout actions</h3>
-              <p className="muted">Generate two layout options for this page, then compare and apply.</p>
+              <p className="muted">Generate two visual arrangements for this page without rewriting the text.</p>
+              <p className="muted">{currentPage?.selected_layout_option_id ? 'A layout option is currently selected for this page.' : 'No layout option selected yet.'}</p>
               <div className="chat-actions">
                 <button type="button" className="premium-button" onClick={() => void generateLayoutOptions()} disabled={busy || layoutOptionsBusy}>Generate 2 Layouts</button>
                 {hasSavedLayoutOptions || Boolean(currentPage?.selected_layout_option_id) ? (
