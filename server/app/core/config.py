@@ -43,9 +43,9 @@ class Settings(BaseSettings):
         alias="SERVER_CORS_ORIGINS",
     )
     data_dir: Path = Field(default=Path("./data"), alias="DATA_DIR")
-    max_upload_image_bytes: int = Field(default=12_582_912, alias="MAX_UPLOAD_IMAGE_BYTES")
+    max_upload_image_bytes: int = Field(default=8_000_000, alias="MAX_UPLOAD_IMAGE_BYTES")
     max_stored_image_dimension: int = Field(default=1600, alias="MAX_STORED_IMAGE_DIMENSION")
-    image_jpeg_quality: int = Field(default=82, alias="IMAGE_JPEG_QUALITY")
+    image_jpeg_quality: int = Field(default=85, alias="IMAGE_JPEG_QUALITY")
     image_webp_quality: int = Field(default=82, alias="IMAGE_WEBP_QUALITY")
     preferred_image_format: str = Field(default="webp", alias="PREFERRED_IMAGE_FORMAT")
 

@@ -6,7 +6,7 @@ type LayoutElement = { id: string; type: string; image_id?: string; box: { x: nu
 export function PagePreview({ page, layoutOverride, mini = false }: { book: Book; page: Page | null; layoutOverride?: Record<string, unknown> | null; mini?: boolean; editable?: boolean; onTextSave?: (nextText: string) => Promise<void> | void; onImageSelect?: (imageId: string) => void }) {
   const activeLayout = (layoutOverride || page?.layout_json || {}) as Record<string, any>
   const pageDef = activeLayout.page || { width: 595, height: 842, safe_area: { x: 36, y: 36, w: 523, h: 770 } }
-  const elements: LayoutElement[] = Array.isArray(activeLayout.elements) ? activeLayout.elements : []
+  const elements: LayoutElement[] = Array.isArray(activeLayout.elements) && activeLayout.elements.length ? activeLayout.elements : [{ id: "text_main", type: "text", box: pageDef.safe_area, z: 20 }] as LayoutElement[]
   const text = page?.final_text || page?.generated_text || page?.user_text || 'Your next page will appear here.'
   const pageImages = new Map((page?.images || []).map((img) => [img.id, img]))
 

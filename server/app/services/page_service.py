@@ -14,6 +14,7 @@ from app.engines.context_engine import ContextEngine
 from app.engines.layout_engine import LayoutEngine
 from app.engines.layout_option_engine import LayoutOptionEngine, LayoutOptionInput
 from app.engines.layout_validator import LayoutValidator
+from app.engines.layout_normalizer import LayoutNormalizer
 from app.engines.page_capacity_engine import PageCapacityEngine
 from app.engines.llm_engine import LLMEngine
 from app.engines.memory_engine import MemoryEngine
@@ -33,6 +34,7 @@ class PageService:
         self.memory_engine = MemoryEngine()
         self.layout_option_engine = LayoutOptionEngine()
         self.layout_validator = LayoutValidator()
+        self.layout_normalizer = LayoutNormalizer()
         self.llm_engine = LLMEngine()
         self.source_retrieval_engine = SourceRetrievalEngine()
         self.text_quality_engine = TextQualityEngine()
@@ -50,6 +52,7 @@ class PageService:
         page = db.get(Page, page_id)
         if not page:
             raise HTTPException(status_code=404, detail="Page not found")
+        page.layout_json = self.layout_normalizer.normalize(page)
         return page
 
     def create_page(self, db: Session, book_id: str, payload: PageCreate) -> Page:
@@ -72,7 +75,10 @@ class PageService:
         return self.create_page(db, book_id, PageCreate(page_number=next_number, user_prompt=user_prompt, user_text=user_text))
     def list_pages(self, db: Session, book_id: str) -> list[Page]:
         self.get_book(db, book_id)
-        return db.query(Page).filter(Page.book_id == book_id).order_by(Page.page_number.asc()).all()
+        pages = db.query(Page).filter(Page.book_id == book_id).order_by(Page.page_number.asc()).all()
+        for page in pages:
+            page.layout_json = self.layout_normalizer.normalize(page)
+        return pages
 
     def update_page(self, db: Session, page_id: str, payload: PageUpdate) -> Page:
         page = self.get_page(db, page_id)
