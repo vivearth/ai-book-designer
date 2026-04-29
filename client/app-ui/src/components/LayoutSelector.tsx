@@ -107,7 +107,7 @@ export function LayoutSelector({ selected, onSelect }: { selected: FormatSetting
           <button
             key={layout.selected_layout_id}
             type="button"
-            className={`layout-card layout-card--${layout.selected_layout_id} ${active ? 'is-active' : ''}`}
+            className={`layout-card layout-option-card layout-card--${layout.selected_layout_id} ${active ? 'is-active' : ''}`}
             onClick={() => onSelect(layout)}
           >
             <div className="layout-card__shine" />
