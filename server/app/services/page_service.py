@@ -194,7 +194,7 @@ class PageService:
         )
         if self.llm_engine.settings.llm_fast_mode:
             should_retry = False
-        if should_retry and self.llm_engine.settings.model_provider.lower().strip() != "mock":
+        if should_retry and self.llm_engine.settings.active_llm_provider.lower().strip() != "mock":
             retry_result = await skill.run(
                 {
                     "instruction": request.instruction,

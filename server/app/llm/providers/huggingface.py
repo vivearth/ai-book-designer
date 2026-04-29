@@ -9,7 +9,7 @@ import httpx
 from app.core.config import Settings
 
 from .base import BaseProvider
-from .errors import ProviderHTTPError, ProviderTimeoutError
+from .errors import ProviderConfigurationError, ProviderHTTPError, ProviderTimeoutError
 
 
 class HuggingFaceProvider(BaseProvider):
@@ -17,6 +17,10 @@ class HuggingFaceProvider(BaseProvider):
 
     def __init__(self, settings: Settings) -> None:
         self.settings = settings
+
+    def _require_token(self) -> None:
+        if not self.settings.hf_api_token or not self.settings.hf_api_token.strip():
+            raise ProviderConfigurationError("HF_API_TOKEN is required when LLM_PROVIDER=hf.")
 
     def _format_prompt(self, prompt: str) -> str:
         tpl = self.settings.hf_chat_template
@@ -42,6 +46,7 @@ class HuggingFaceProvider(BaseProvider):
 
     async def generate_text(self, prompt: str, *, temperature: float, model: str, purpose: str | None = None) -> str:
         _ = purpose
+        self._require_token()
         url = f"{self.settings.hf_base_url.rstrip('/')}/{model}"
         headers = {"Authorization": f"Bearer {self.settings.hf_api_token}"} if self.settings.hf_api_token else {}
         payload = {
@@ -80,7 +85,7 @@ class HuggingFaceProvider(BaseProvider):
             "available": bool(self.settings.hf_api_token),
             "models": [self.settings.hf_model],
             "configured_model_present": bool(self.settings.hf_model),
-            "warmup_recommended": bool(self.settings.hf_keep_alive_enabled),
+            "warmup_recommended": False,
             "recommendations": [] if self.settings.hf_api_token else ["Set HF_API_TOKEN to enable Hugging Face Inference API."],
         }
 

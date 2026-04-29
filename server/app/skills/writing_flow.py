@@ -249,7 +249,7 @@ async def maybe_run_two_pass_page_generation(
     if context.llm_engine is None:
         provider = "mock"
     else:
-        provider = context.llm_engine.settings.model_provider.lower().strip()
+        provider = context.llm_engine.settings.active_llm_provider.lower().strip()
     if context.llm_engine and (context.llm_engine.settings.llm_fast_mode or not context.llm_engine.settings.llm_two_pass_enabled):
         prose, notes = await write_page_from_plan(
             context=context,

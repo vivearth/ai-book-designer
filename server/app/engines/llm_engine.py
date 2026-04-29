@@ -7,7 +7,7 @@ from typing import Any
 
 from app.core.config import get_settings
 from app.llm.factory import create_provider
-from app.llm.providers.errors import ProviderError, ProviderHTTPError, ProviderTimeoutError
+from app.llm.providers.errors import ProviderConfigurationError, ProviderError, ProviderHTTPError, ProviderTimeoutError
 
 
 class LLMEngine:
@@ -31,6 +31,8 @@ class LLMEngine:
         started = time.perf_counter()
         try:
             text = await self.provider.generate_text(prompt, temperature=temperature, model=resolved_model, purpose=purpose)
+        except ProviderConfigurationError:
+            raise
         except ProviderTimeoutError:
             notes.append(f"{self.provider.name} timeout; mock generator was used as fallback.")
             return self._mock_generate(prompt), notes

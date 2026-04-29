@@ -13,8 +13,7 @@ class Settings(BaseSettings):
         default="sqlite:///./data/book_designer.db",
         alias="DATABASE_URL",
     )
-    model_provider: str = Field(default="mock", alias="MODEL_PROVIDER")
-    llm_provider: str | None = Field(default=None, alias="LLM_PROVIDER")
+    llm_provider: str = Field(default="mock", alias="LLM_PROVIDER")
     ollama_base_url: str = Field(default="http://ollama:11434", alias="OLLAMA_BASE_URL")
     ollama_model: str = Field(default="qwen2.5:3b-instruct", alias="OLLAMA_MODEL")
     ollama_timeout_seconds: float = Field(default=300, alias="OLLAMA_TIMEOUT_SECONDS")
@@ -37,8 +36,6 @@ class Settings(BaseSettings):
     hf_max_new_tokens: int = Field(default=320, alias="HF_MAX_NEW_TOKENS")
     hf_retry_attempts: int = Field(default=3, alias="HF_RETRY_ATTEMPTS")
     hf_retry_backoff_seconds: float = Field(default=1.0, alias="HF_RETRY_BACKOFF_SECONDS")
-    hf_keep_alive_enabled: bool = Field(default=False, alias="HF_KEEP_ALIVE_ENABLED")
-    hf_keep_alive_interval_seconds: int = Field(default=300, alias="HF_KEEP_ALIVE_INTERVAL_SECONDS")
     hf_chat_template: str = Field(default="plain", alias="HF_CHAT_TEMPLATE")
     server_cors_origins: str = Field(
         default="http://localhost:5173,http://localhost:3000,http://localhost:8080",
@@ -64,11 +61,7 @@ class Settings(BaseSettings):
 
     @property
     def active_llm_provider(self) -> str:
-        if self.llm_provider and self.llm_provider.strip():
-            return self.llm_provider.lower().strip()
-        if self.model_provider and self.model_provider.strip():
-            return self.model_provider.lower().strip()
-        return "mock"
+        return self.llm_provider.lower().strip() or "mock"
 
 
 @lru_cache

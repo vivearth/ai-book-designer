@@ -163,7 +163,7 @@ class LayoutOptionEngine:
         }
 
     async def _maybe_enhance_rationales(self, payload: LayoutOptionInput, options: list[dict]) -> dict[int, str]:
-        provider = self.llm_engine.settings.model_provider.lower().strip()
+        provider = self.llm_engine.settings.active_llm_provider.lower().strip()
         if provider != "ollama":
             return {}
         if self.llm_engine.settings.llm_fast_mode:

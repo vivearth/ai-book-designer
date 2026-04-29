@@ -196,7 +196,7 @@ Current MVP constraints:
 
 ## LLM provider switching
 
-Set `LLM_PROVIDER` (preferred) or `MODEL_PROVIDER` (backward compatible) to one of:
+Set `LLM_PROVIDER` to one of:
 - `mock`
 - `ollama`
 - `hf`

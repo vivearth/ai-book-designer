@@ -5,7 +5,7 @@ from app.engines.llm_engine import LLMEngine
 
 
 def test_model_routing_config(monkeypatch):
-    monkeypatch.setenv('MODEL_PROVIDER', 'ollama')
+    monkeypatch.setenv('LLM_PROVIDER', 'ollama')
     monkeypatch.setenv('OLLAMA_MODEL', 'legacy-model')
     monkeypatch.setenv('DEFAULT_LLM_MODEL', 'default-model')
     monkeypatch.setenv('FICTION_LLM_MODEL', 'fiction-model')

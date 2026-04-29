@@ -21,7 +21,7 @@ class MockProvider(BaseProvider):
             "models": [],
             "configured_model_present": True,
             "warmup_recommended": False,
-            "recommendations": ["Mock provider active. Switch LLM_PROVIDER/MODEL_PROVIDER to ollama or hf."],
+            "recommendations": ["Mock provider active. Switch LLM_PROVIDER to ollama or hf."],
         }
 
     async def warmup(self, model: str | None = None) -> dict[str, Any]:

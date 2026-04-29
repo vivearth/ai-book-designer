@@ -7,7 +7,7 @@ from app.engines.llm_engine import LLMEngine
 
 
 def test_llm_status_mock(monkeypatch):
-    monkeypatch.setenv('MODEL_PROVIDER', 'mock')
+    monkeypatch.setenv('LLM_PROVIDER', 'mock')
     get_settings.cache_clear()
     status = asyncio.run(LLMEngine().get_provider_status())
     assert status['provider'] == 'mock'
@@ -16,7 +16,7 @@ def test_llm_status_mock(monkeypatch):
 
 
 def test_llm_status_ollama_mocked(monkeypatch):
-    monkeypatch.setenv('MODEL_PROVIDER', 'ollama')
+    monkeypatch.setenv('LLM_PROVIDER', 'ollama')
     monkeypatch.setenv('OLLAMA_MODEL', 'qwen2.5:3b-instruct')
     get_settings.cache_clear()
 
