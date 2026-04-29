@@ -39,12 +39,14 @@ export function LandingScreen({
       </header>
 
       <main className="landing-hero">
-        <h1 className="landing-title">
-          Imagine it.<br />
-          We design it.<br />
-          You <span className="gradient-text">publish it.</span>
-        </h1>
-        <p>AI-powered layouts, beautiful pages, and a live book preview — from rough content to print-ready draft.</p>
+        <section className="landing-hero-copy">
+          <h1 className="landing-title">
+            Imagine it.<br />
+            We design it.<br />
+            You <span className="gradient-text">publish it.</span>
+          </h1>
+          <p className="landing-subtitle">AI-powered layouts, beautiful pages, and a live book preview — from rough content to print-ready draft.</p>
+        </section>
 
         <div className="landing-action-row">
           <article className="glass-card landing-cta-card">
