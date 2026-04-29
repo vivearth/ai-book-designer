@@ -484,6 +484,13 @@ class PageService:
             if not next_page:
                 next_page = self.create_page(db, current.book_id, PageCreate(page_number=current.page_number + 1, user_prompt=f"Continuation from page {current.page_number}"))
             self._prepend_overflow_to_page(next_page, overflow_text, active_field, reason, current.id)
+            cur_meta = dict(current.generation_metadata or {})
+            cur_meta["continued_to_page_id"] = next_page.id
+            current.generation_metadata = cur_meta
+            cur_pag = dict((current.generation_metadata or {}).get("pagination") or {})
+            cur_pag["continued_to_page_id"] = next_page.id
+            cur_meta["pagination"] = cur_pag
+            current.generation_metadata = cur_meta
             next_md = dict(next_page.generation_metadata or {})
             next_md.update({"continued_from_page_id": current.id, "auto_continued": True, "repaginated_due_to": reason, "overflow_source_page_id": current.id})
             next_page.generation_metadata = next_md
