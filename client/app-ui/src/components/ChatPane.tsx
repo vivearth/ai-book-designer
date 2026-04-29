@@ -61,8 +61,6 @@ export function ChatPane({
           <button type="button" className="ghost-button" onClick={onNextPage} disabled={busy}>Add next page</button>
         </div>
       </article>
-
-      <p className="muted">Need layout choices? Open the Layout tab.</p>
     </section>
   )
 }
