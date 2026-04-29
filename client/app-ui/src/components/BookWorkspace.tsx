@@ -13,7 +13,7 @@ import { LayoutOptionsPanel } from './LayoutOptionsPanel'
 type Draft = { user_prompt: string; user_text: string; instruction: string; imageFile: File | null }
 const INITIAL_DRAFT: Draft = { user_prompt: '', user_text: '', instruction: 'Shape this into a polished page while preserving continuity.', imageFile: null }
 
-type RailPanel = 'pages' | 'content' | 'layout' | 'images' | 'style' | 'assist' | 'settings'
+type RailPanel = 'pages' | 'content' | 'layout' | 'images'
 
 export function BookWorkspace({ book, pages, setPages, refreshPages, onBack, onSelectProject, books }: {
   book: Book
@@ -252,16 +252,15 @@ export function BookWorkspace({ book, pages, setPages, refreshPages, onBack, onS
       {warnings.find((w) => /fallback|timeout|ollama/i.test(w)) ? <div className="warning-banner">{warnings.find((w) => /fallback|timeout|ollama/i.test(w))}</div> : null}
 
       <div className="workspace-grid">
-        <aside className="workspace-rail glass-card">
-          <button className={activeRailPanel === 'pages' ? 'is-active' : ''} onClick={() => setActiveRailPanel('pages')}>Pages</button>
-          <button className={activeRailPanel === 'content' ? 'is-active' : ''} onClick={() => setActiveRailPanel('content')}>Content</button>
-          <button className={activeRailPanel === 'layout' ? 'is-active' : ''} onClick={() => setActiveRailPanel('layout')}>Layout</button>
-          <button className={activeRailPanel === 'images' ? 'is-active' : ''} onClick={() => setActiveRailPanel('images')}>Images</button>
-          <button disabled title="Coming soon">Style · Soon</button>
-          <button disabled title="Coming soon">AI Assist · Soon</button>
-          <button disabled title="Coming soon">Settings · Soon</button>
-        </aside>
         <div className="workspace-editor-shell">
+          <section className="glass-card rail-panel page-editor-panel">
+            <div className="panel-tabs">
+              <button className={activeRailPanel === 'content' ? 'is-active' : ''} onClick={() => setActiveRailPanel('content')}>Content</button>
+              <button className={activeRailPanel === 'layout' ? 'is-active' : ''} onClick={() => setActiveRailPanel('layout')}>Layout</button>
+              <button className={activeRailPanel === 'images' ? 'is-active' : ''} onClick={() => setActiveRailPanel('images')}>Image</button>
+              <button className={activeRailPanel === 'pages' ? 'is-active' : ''} onClick={() => setActiveRailPanel('pages')}>Pages</button>
+            </div>
+          </section>
           {activeRailPanel === 'pages' ? (
             <section className="glass-card rail-panel">
               <h3>Pages</h3>
@@ -290,28 +289,21 @@ export function BookWorkspace({ book, pages, setPages, refreshPages, onBack, onS
               onGenerateLayoutOptions={() => void generateLayoutOptions()}
               onViewLayoutOptions={() => void viewLayoutOptions()}
               hasExistingLayoutOptions={hasSavedLayoutOptions || Boolean(currentPage?.selected_layout_option_id)}
-              forcedTab="content"
               onAddImageClick={() => setActiveRailPanel('images')}
             />
           ) : null}
 
           {activeRailPanel === 'layout' ? (
-            <ChatPane
-              pageNumber={currentPage?.page_number || nextPageNumber}
-              draft={draft}
-              setDraft={setDraft}
-              busy={busy || layoutOptionsBusy}
-              currentPage={currentPage}
-              onSaveDraft={saveDraft}
-              onGenerate={generatePage}
-              onApprove={approvePage}
-              onNextPage={() => void createNextPage()}
-              onGenerateLayoutOptions={() => void generateLayoutOptions()}
-              onViewLayoutOptions={() => void viewLayoutOptions()}
-              hasExistingLayoutOptions={hasSavedLayoutOptions || Boolean(currentPage?.selected_layout_option_id)}
-              forcedTab="layout"
-              onAddImageClick={() => setActiveRailPanel('images')}
-            />
+            <section className="glass-card rail-panel">
+              <h3>Layout actions</h3>
+              <p className="muted">Generate two layout options for this page, then compare and apply.</p>
+              <div className="chat-actions">
+                <button type="button" className="premium-button" onClick={() => void generateLayoutOptions()} disabled={busy || layoutOptionsBusy}>Generate 2 Layouts</button>
+                {hasSavedLayoutOptions || Boolean(currentPage?.selected_layout_option_id) ? (
+                  <button type="button" className="ghost-button" onClick={() => void viewLayoutOptions()} disabled={busy || layoutOptionsBusy}>View options</button>
+                ) : null}
+              </div>
+            </section>
           ) : null}
 
           {activeRailPanel === 'images' ? (

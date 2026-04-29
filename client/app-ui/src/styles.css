@@ -1092,3 +1092,42 @@ input, textarea, select, .ui-field input, .ui-field textarea {
   .page-thumbnail-strip { flex-direction: row; }
   .landing-art-preview { display:none; }
 }
+
+/* cleanup: reduce navigation redundancy + fix wizard/layout card overflow */
+.workspace-grid { grid-template-columns: minmax(360px, 0.9fr) 1.1fr !important; }
+.workspace-editor-shell { padding-left: 1rem; }
+.page-editor-panel { padding: 0.85rem 1rem; }
+.panel-tabs { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 0.5rem; margin: 0; }
+.panel-tabs button { border-radius: 12px !important; padding: 0.6rem 0.5rem; background: rgba(20,12,37,.78); color: var(--text-muted); border: 1px solid rgba(196,181,253,.25); box-shadow: none; }
+.panel-tabs button.is-active { color: var(--text-main); border-color: var(--border-glow); background: rgba(139,92,246,.22); }
+.preview-workspace { display:block; }
+.chat-actions--primary { margin-top: .2rem; }
+.chat-actions--secondary { padding-top: .15rem; border-top: 1px solid rgba(196,181,253,.16); }
+
+.wizard-card { border-radius: 28px !important; overflow: visible; }
+.wizard-grid, .wizard-mode-grid, .layout-selector { align-items: stretch; }
+.book-type-card, .mode-hero-card { min-height: 230px; border-radius: 26px !important; overflow: hidden; }
+.book-type-card .ui-option-body, .mode-hero-card .ui-option-body { display: grid; gap: .55rem; }
+.mode-hero-card ul { margin: 0.65rem 0 0; padding-left: 1.1rem; line-height: 1.5; }
+.wizard-footer { position: static; }
+
+.layout-card, .layout-option-card {
+  border-radius: 24px !important;
+  min-height: 360px;
+  overflow: hidden;
+  display: grid;
+  grid-template-rows: auto 1fr;
+  align-content: start;
+}
+.layout-card__mini-preview { min-height: 190px; margin-bottom: 0.8rem; }
+.layout-miniature { width: 100%; max-width: 220px; margin: 0 auto; }
+.layout-card strong { margin-bottom: .4rem; }
+.layout-card p { line-height: 1.45; }
+
+@media (max-width: 1180px) {
+  .workspace-grid { grid-template-columns: 1fr !important; }
+  .workspace-editor-shell { padding-left: 0; }
+}
+@media (max-width: 760px) {
+  .panel-tabs { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
