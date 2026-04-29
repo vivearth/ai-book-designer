@@ -125,4 +125,15 @@ class LLMEngine:
         return match.group(1).strip() if match else ""
 
     def _mock_generate(self, prompt: str) -> str:
-        return "Mock content fallback output."
+        title = self._extract_field(prompt, "Book title") or "Untitled"
+        topic = self._extract_field(prompt, "Book topic") or "the work ahead"
+        genre = self._extract_field(prompt, "Genre or content direction").lower()
+        direction = self._extract_field(prompt, "Page direction") or "the opening movement"
+        rough_text = self._extract_field(prompt, "Rough text") or "The page is still a sketch."
+        if genre == "finance":
+            return f"{direction} begins with a practical observation: disciplined financial choices matter under pressure. In this section, the reader moves into {topic}, where trade-offs are clarified and decisions become concrete. {rough_text} The prose should feel grounded, structured, and relevant to {title}."
+        if genre == "marketing":
+            return f"{direction} opens at the moment strategy meets audience reality. Inside {title}, the focus is relevance over noise: {topic}. {rough_text} This page connects positioning, message clarity, and practical execution so the reader can act with confidence."
+        if "fiction" in genre or any(g in genre for g in {"memoir", "children", "poetry", "novel", "story"}):
+            return f"{direction} snaps into motion as rain and traffic close in. {rough_text} A shot cracks behind him, then another, and he dives from the bridge before fear can settle. The river hits hard, cold and violent, and when he surfaces the chase is still alive. In {title}, every sentence keeps the pulse moving forward."
+        return f"{direction} begins by clarifying the central idea at stake. {rough_text} Rather than repeating planning notes, this page turns them into readable prose that advances {topic} and keeps continuity inside {title}."

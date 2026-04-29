@@ -1,9 +1,10 @@
 from __future__ import annotations
 
-from fastapi import APIRouter
+from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel
 
 from app.engines.llm_engine import LLMEngine
+from app.llm.providers.errors import ProviderError
 
 router = APIRouter(prefix="/llm", tags=["llm"])
 engine = LLMEngine()
@@ -25,6 +26,9 @@ async def llm_warmup():
 
 @router.post('/test-generate')
 async def llm_test_generate(payload: LLMTestRequest):
-    text, notes = await engine.generate_text(payload.prompt, purpose='general', temperature=0.1)
-    model, _ = engine.resolve_model(purpose='general')
-    return {"text": text, "provider": engine.provider.name, "model": model, "notes": notes, "fallback_used": any('fallback_used=true' in n for n in notes)}
+    try:
+        text, notes = await engine.generate_text(payload.prompt, purpose='general', temperature=0.1)
+        model, _ = engine.resolve_model(purpose='general')
+        return {"text": text, "provider": engine.provider.name, "model": model, "notes": notes, "fallback_used": any('fallback_used=true' in n for n in notes)}
+    except ProviderError as exc:
+        raise HTTPException(status_code=502, detail=str(exc)) from exc

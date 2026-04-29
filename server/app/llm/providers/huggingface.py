@@ -10,7 +10,7 @@ import httpx
 from app.core.config import Settings
 
 from .base import BaseProvider
-from .errors import ProviderConfigurationError, ProviderHTTPError, ProviderTimeoutError
+from .errors import ProviderConfigurationError, ProviderError, ProviderHTTPError, ProviderTimeoutError
 
 logger = logging.getLogger(__name__)
 
@@ -25,19 +25,34 @@ class HuggingFaceProvider(BaseProvider):
         if not self.settings.hf_api_token or not self.settings.hf_api_token.strip():
             raise ProviderConfigurationError("HF_API_TOKEN is required when LLM_PROVIDER=hf.")
 
+    def _format_prompt(self, prompt: str) -> str:
+        tpl = self.settings.hf_chat_template
+        if tpl == "mistral":
+            return f"<s>[INST] {prompt.strip()} [/INST]"
+        if tpl == "llama":
+            return f"<|begin_of_text|><|user|>\n{prompt.strip()}\n<|assistant|>"
+        return prompt
+
     def _extract_generated(self, payload: Any) -> str:
-        if isinstance(payload, list) and payload and isinstance(payload[0], dict):
-            return str(payload[0].get("generated_text") or "").strip()
+        if isinstance(payload, list) and payload:
+            for item in payload:
+                if isinstance(item, dict) and item.get("generated_text"):
+                    return str(item["generated_text"]).strip()
         if isinstance(payload, dict):
-            return str(payload.get("generated_text") or "").strip()
-        return ""
+            if payload.get("generated_text"):
+                return str(payload["generated_text"]).strip()
+            if isinstance(payload.get("data"), list):
+                for item in payload["data"]:
+                    if isinstance(item, dict) and item.get("generated_text"):
+                        return str(item["generated_text"]).strip()
+        raise ProviderError("HF response missing generated_text in known response shapes.")
 
     async def generate_text(self, prompt: str, *, temperature: float, model: str, purpose: str | None = None) -> str:
         _ = purpose
         self._require_token()
         url = f"{self.settings.hf_base_url.rstrip('/')}/{model}"
         headers = {"Authorization": f"Bearer {self.settings.hf_api_token}"}
-        payload = {"inputs": prompt, "parameters": {"temperature": temperature, "max_new_tokens": self.settings.hf_max_new_tokens, "return_full_text": False}, "options": {"wait_for_model": True}}
+        payload = {"inputs": self._format_prompt(prompt), "parameters": {"temperature": temperature, "max_new_tokens": self.settings.hf_max_new_tokens, "return_full_text": False}, "options": {"wait_for_model": True}}
         async with httpx.AsyncClient(timeout=httpx.Timeout(self.settings.hf_timeout_seconds)) as client:
             for idx in range(max(1, self.settings.hf_retry_attempts)):
                 try:

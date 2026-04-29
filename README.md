@@ -227,6 +227,14 @@ Hugging Face does not require the Ollama container. Required HF vars: `HF_API_TO
 
 ## Verifying selected LLM provider
 
+Debug endpoints:
+- `GET /api/llm/status`
+- `POST /api/llm/test-generate`
+
+`LLM_FALLBACK_TO_MOCK_ON_PROVIDER_ERROR=false` by default (visible provider failures).
+Enable fallback for demos only by setting `LLM_FALLBACK_TO_MOCK_ON_PROVIDER_ERROR=true`.
+
+
 Use these checks from a running container:
 
 ```bash
