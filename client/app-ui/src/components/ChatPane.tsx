@@ -17,9 +17,6 @@ export function ChatPane({
   onGenerate,
   onApprove,
   onNextPage,
-  onGenerateLayoutOptions,
-  onViewLayoutOptions,
-  hasExistingLayoutOptions,
   onAddImageClick,
 }: {
   pageNumber: number
@@ -31,9 +28,6 @@ export function ChatPane({
   onGenerate: () => void
   onApprove: () => void
   onNextPage: () => void
-  onGenerateLayoutOptions: () => void
-  onViewLayoutOptions: () => void
-  hasExistingLayoutOptions: boolean
   onAddImageClick?: () => void
 }) {
   return (
@@ -68,14 +62,7 @@ export function ChatPane({
         </div>
       </article>
 
-      <article className="chat-message chat-message--user">
-        <h4>Layout actions</h4>
-        <p className="muted">Create Option A and Option B, compare mini previews, then apply one.</p>
-        <div className="chat-actions">
-          <button type="button" className="premium-button" onClick={onGenerateLayoutOptions} disabled={busy}>Generate 2 Layouts</button>
-          {hasExistingLayoutOptions ? <button type="button" className="ghost-button" onClick={onViewLayoutOptions} disabled={busy}>View options</button> : null}
-        </div>
-      </article>
+      <p className="muted">Need layout choices? Open the Layout tab.</p>
     </section>
   )
 }

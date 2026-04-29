@@ -286,9 +286,6 @@ export function BookWorkspace({ book, pages, setPages, refreshPages, onBack, onS
               onGenerate={generatePage}
               onApprove={approvePage}
               onNextPage={() => void createNextPage()}
-              onGenerateLayoutOptions={() => void generateLayoutOptions()}
-              onViewLayoutOptions={() => void viewLayoutOptions()}
-              hasExistingLayoutOptions={hasSavedLayoutOptions || Boolean(currentPage?.selected_layout_option_id)}
               onAddImageClick={() => setActiveRailPanel('images')}
             />
           ) : null}
