@@ -191,7 +191,6 @@ class PageService:
             retry_body = retry_result.output.get("body_text") or ""
             retry_body, retry_sanitize_notes = self.llm_engine.sanitize_generated_page_text(retry_body)
             retry_body, retry_repetition_notes = self.text_quality_engine.remove_repeated_sentences(retry_body)
-            retry_current_text, retry_overflow_text = self.pagination_engine.split_text_for_page(retry_body, target_words)
             retry_quality = await quality_skill.run(
                 {
                     "generated_text": retry_body,
