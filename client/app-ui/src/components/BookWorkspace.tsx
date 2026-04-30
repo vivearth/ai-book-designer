@@ -68,6 +68,10 @@ export function BookWorkspace({ book, pages, setPages, refreshPages, onBack, onS
     const exists = sortedPages.some((p) => p.id === activeTarget.pageId)
     if (!exists) setActiveTarget(sortedPages.length ? { kind: 'page', pageId: sortedPages[sortedPages.length - 1].id } : { kind: 'cover' })
   }, [activeTarget, sortedPages])
+
+  useEffect(() => {
+    setDraft((prev) => (prev.imageFile ? { ...prev, imageFile: null } : prev))
+  }, [currentPage?.id])
   useEffect(() => { if (expertMode && book.project_id) void refreshSources() }, [book.id, book.project_id, expertMode])
   useEffect(() => {
     if (!currentPage) {

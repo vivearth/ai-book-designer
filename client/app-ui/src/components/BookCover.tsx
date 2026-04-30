@@ -2,6 +2,7 @@ import { resolveGeneratedCoverUrl, resolveUploadUrl } from '../api'
 import type { Book } from '../types'
 import { GeneratedCover } from './GeneratedCover'
 
+// TODO(layout-stability): LLM-derived cover compact titles are intentionally deferred in this branch; deterministic fitting remains the safety mechanism.
 function fitCoverTitle(title: string): { text: string; sizeClass: string } {
   const clean = (title || 'Untitled').trim().replace(/\s+/g, ' ')
   const sizeClass = clean.length > 72 ? 'cover-title--sm' : clean.length > 44 ? 'cover-title--md' : 'cover-title--lg'
