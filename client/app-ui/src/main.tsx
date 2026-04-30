@@ -22,8 +22,9 @@ function App() {
   }
 
   async function openBook(book: Book) {
+    const refreshedPages = await api.listPages(book.id)
     setSelectedBook(book)
-    setPages(await api.listPages(book.id))
+    setPages(refreshedPages)
     setMode('workspace')
   }
 

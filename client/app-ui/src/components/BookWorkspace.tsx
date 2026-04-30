@@ -26,6 +26,7 @@ export function BookWorkspace({ book, pages, setPages, refreshPages, onBack, onS
   project?: Project | null
 }) {
   const [draft, setDraft] = useState<Draft>(INITIAL_DRAFT)
+  const [uploadedImageSignatureByPageId, setUploadedImageSignatureByPageId] = useState<Record<string, string>>({})
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [activeTarget, setActiveTarget] = useState<{ kind: 'cover' } | { kind: 'page'; pageId: string } | { kind: 'new-page' }>({ kind: 'new-page' })
@@ -61,6 +62,12 @@ export function BookWorkspace({ book, pages, setPages, refreshPages, onBack, onS
     }
   }, [book.id, sortedPages.length])
 
+
+  useEffect(() => {
+    if (activeTarget.kind !== 'page') return
+    const exists = sortedPages.some((p) => p.id === activeTarget.pageId)
+    if (!exists) setActiveTarget(sortedPages.length ? { kind: 'page', pageId: sortedPages[sortedPages.length - 1].id } : { kind: 'cover' })
+  }, [activeTarget, sortedPages])
   useEffect(() => { if (expertMode && book.project_id) void refreshSources() }, [book.id, book.project_id, expertMode])
   useEffect(() => {
     if (!currentPage) {
@@ -98,6 +105,15 @@ export function BookWorkspace({ book, pages, setPages, refreshPages, onBack, onS
     try { await action() } catch (err) { setError(err instanceof Error ? err.message : 'Something went wrong') } finally { setBusy(false) }
   }
 
+  async function uploadSelectedImageOnce(page: Page) {
+    if (!draft.imageFile) return
+    const signature = `${draft.imageFile.name}:${draft.imageFile.size}:${draft.imageFile.lastModified}`
+    if (uploadedImageSignatureByPageId[page.id] === signature) return
+    await api.uploadImage(page.id, draft.imageFile, 'Page inspiration')
+    setUploadedImageSignatureByPageId((prev) => ({ ...prev, [page.id]: signature }))
+    setDraft((prev) => ({ ...prev, imageFile: null }))
+  }
+
   async function ensurePage() {
     if (currentPage && currentPage.status !== 'approved') return currentPage
     const created = await api.createNextPage(book.id)
@@ -111,7 +127,7 @@ export function BookWorkspace({ book, pages, setPages, refreshPages, onBack, onS
     await guarded(async () => {
       const page = currentPage ?? (await ensurePage())
       const updated = await api.updatePage(page.id, { user_prompt: draft.user_prompt, user_text: draft.user_text })
-      if (draft.imageFile) await api.uploadImage(page.id, draft.imageFile, 'Page inspiration')
+      await uploadSelectedImageOnce(page)
       await refreshPages(); setActiveTarget({ kind: 'page', pageId: updated.id })
     })
   }
@@ -120,7 +136,7 @@ export function BookWorkspace({ book, pages, setPages, refreshPages, onBack, onS
     await guarded(async () => {
       const page = currentPage ?? (await ensurePage())
       await api.updatePage(page.id, { user_prompt: draft.user_prompt, user_text: draft.user_text })
-      if (draft.imageFile) await api.uploadImage(page.id, draft.imageFile, 'Page inspiration')
+      await uploadSelectedImageOnce(page)
 
       const allowNewCharacters = book.book_type_id.includes('fiction') && (page.page_number === 1 || !book.memory?.global_summary)
       const page_capacity_hint = estimatePageCapacity(book, page)
@@ -185,7 +201,7 @@ export function BookWorkspace({ book, pages, setPages, refreshPages, onBack, onS
       }
 
       const updated = await api.updatePage(page.id, { user_prompt: draft.user_prompt, user_text: draft.user_text })
-      if (draft.imageFile) await api.uploadImage(updated.id, draft.imageFile, 'Page inspiration')
+      await uploadSelectedImageOnce(updated)
       await refreshPages()
       setActiveTarget({ kind: 'page', pageId: updated.id })
       const latestPages = await api.listPages(book.id)

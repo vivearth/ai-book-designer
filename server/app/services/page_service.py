@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import re
+import hashlib
 from io import BytesIO
 
 from fastapi import HTTPException, UploadFile
@@ -400,6 +401,14 @@ class PageService:
         if len(contents) > settings.max_upload_image_bytes:
             raise HTTPException(status_code=413, detail=f"Image upload exceeds max size of {settings.max_upload_image_bytes} bytes.")
         original_size = len(contents)
+        sha256 = hashlib.sha256(contents).hexdigest()
+        metadata = dict(page.generation_metadata or {})
+        uploads = dict(metadata.get("image_uploads") or {})
+        existing = next((image_id for image_id, info in uploads.items() if info.get("sha256") == sha256), None)
+        if existing:
+            existing_image = db.get(PageImage, existing)
+            if existing_image and existing_image.page_id == page.id:
+                return existing_image
         try:
             img = Image.open(BytesIO(contents))
             img = ImageOps.exif_transpose(img)
@@ -438,9 +447,8 @@ class PageService:
         db.add(image)
         db.flush()
         db.expire(page, ["images"])
-        metadata = dict(page.generation_metadata or {})
-        uploads = dict(metadata.get("image_uploads") or {})
         uploads[image.id] = {
+            "sha256": sha256,
             "width": img.width,
             "height": img.height,
             "optimized_size_bytes": len(output.getvalue()),
