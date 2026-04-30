@@ -1,4 +1,4 @@
-export type PreviewScenario = { id: 'image-only' | 'text-with-image' | 'text-only'; title: string; description: string }
+export type PreviewScenario = { id: 'image_only' | 'text_with_image' | 'text_only'; title: string; description: string }
 
 export type BookMemory = {
   global_summary: string

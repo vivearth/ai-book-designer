@@ -453,47 +453,47 @@ img { max-width: 100%; display: block; }
 .scenario-visual__bars { position: absolute; display: flex; align-items: flex-end; gap: 0.25rem; }
 .scenario-visual__bars span { position: static; flex: 1; border-radius: 6px 6px 0 0; background: rgba(104,115,93,0.5); }
 .scenario-card--classic-novel .scenario-card__visual { background: linear-gradient(180deg, rgba(247,240,230,0.92), rgba(255,250,241,0.88)); }
-.scenario-card--classic-novel.scenario-card--image-only .scenario-visual__image { top: 28px; left: 20%; right: 20%; bottom: 28px; }
-.scenario-card--classic-novel.scenario-card--image-only .scenario-visual__headline,
-.scenario-card--classic-novel.scenario-card--image-only .scenario-visual__columns,
-.scenario-card--classic-novel.scenario-card--image-only .scenario-visual__quote,
-.scenario-card--classic-novel.scenario-card--image-only .scenario-visual__bars { display: none; }
-.scenario-card--classic-novel.scenario-card--text-with-image .scenario-visual__image { top: 50px; right: 16px; width: 34%; height: 42%; }
-.scenario-card--classic-novel.scenario-card--text-with-image .scenario-visual__columns { left: 16px; right: 42%; top: 44px; }
-.scenario-card--classic-novel.scenario-card--text-with-image .scenario-visual__quote { left: 16px; right: 42%; bottom: 18px; height: 14px; }
-.scenario-card--classic-novel.scenario-card--text-only .scenario-visual__columns { left: 16px; right: 16px; top: 44px; gap: 0.5rem; }
-.scenario-card--classic-novel.scenario-card--text-only .scenario-visual__columns span { height: 8px; }
-.scenario-card--classic-novel.scenario-card--text-only .scenario-visual__image,
-.scenario-card--classic-novel.scenario-card--text-only .scenario-visual__quote,
-.scenario-card--classic-novel.scenario-card--text-only .scenario-visual__bars { display: none; }
+.scenario-card--classic-novel.scenario-card--image_only .scenario-visual__image { top: 28px; left: 20%; right: 20%; bottom: 28px; }
+.scenario-card--classic-novel.scenario-card--image_only .scenario-visual__headline,
+.scenario-card--classic-novel.scenario-card--image_only .scenario-visual__columns,
+.scenario-card--classic-novel.scenario-card--image_only .scenario-visual__quote,
+.scenario-card--classic-novel.scenario-card--image_only .scenario-visual__bars { display: none; }
+.scenario-card--classic-novel.scenario-card--text_with_image .scenario-visual__image { top: 50px; right: 16px; width: 34%; height: 42%; }
+.scenario-card--classic-novel.scenario-card--text_with_image .scenario-visual__columns { left: 16px; right: 42%; top: 44px; }
+.scenario-card--classic-novel.scenario-card--text_with_image .scenario-visual__quote { left: 16px; right: 42%; bottom: 18px; height: 14px; }
+.scenario-card--classic-novel.scenario-card--text_only .scenario-visual__columns { left: 16px; right: 16px; top: 44px; gap: 0.5rem; }
+.scenario-card--classic-novel.scenario-card--text_only .scenario-visual__columns span { height: 8px; }
+.scenario-card--classic-novel.scenario-card--text_only .scenario-visual__image,
+.scenario-card--classic-novel.scenario-card--text_only .scenario-visual__quote,
+.scenario-card--classic-novel.scenario-card--text_only .scenario-visual__bars { display: none; }
 
 .scenario-card--illustrated-story .scenario-card__visual { background: linear-gradient(180deg, rgba(255,245,232,0.95), rgba(248,233,208,0.9)); }
 .scenario-card--illustrated-story .scenario-visual__image { left: 10px; right: 10px; top: 12px; bottom: 12px; }
-.scenario-card--illustrated-story.scenario-card--image-only .scenario-visual__headline,
-.scenario-card--illustrated-story.scenario-card--image-only .scenario-visual__columns,
-.scenario-card--illustrated-story.scenario-card--image-only .scenario-visual__quote,
-.scenario-card--illustrated-story.scenario-card--image-only .scenario-visual__bars { display: none; }
-.scenario-card--illustrated-story.scenario-card--text-with-image .scenario-visual__image { left: 10px; right: 10px; top: 10px; height: 60%; }
-.scenario-card--illustrated-story.scenario-card--text-with-image .scenario-visual__columns { left: 18px; right: 18px; bottom: 18px; top: auto; }
-.scenario-card--illustrated-story.scenario-card--text-only .scenario-visual__columns { left: 18px; right: 18px; top: 52px; gap: 0.55rem; }
-.scenario-card--illustrated-story.scenario-card--text-only .scenario-visual__headline { width: 38%; }
-.scenario-card--illustrated-story.scenario-card--text-only .scenario-visual__image,
-.scenario-card--illustrated-story.scenario-card--text-only .scenario-visual__quote,
-.scenario-card--illustrated-story.scenario-card--text-only .scenario-visual__bars { display: none; }
+.scenario-card--illustrated-story.scenario-card--image_only .scenario-visual__headline,
+.scenario-card--illustrated-story.scenario-card--image_only .scenario-visual__columns,
+.scenario-card--illustrated-story.scenario-card--image_only .scenario-visual__quote,
+.scenario-card--illustrated-story.scenario-card--image_only .scenario-visual__bars { display: none; }
+.scenario-card--illustrated-story.scenario-card--text_with_image .scenario-visual__image { left: 10px; right: 10px; top: 10px; height: 60%; }
+.scenario-card--illustrated-story.scenario-card--text_with_image .scenario-visual__columns { left: 18px; right: 18px; bottom: 18px; top: auto; }
+.scenario-card--illustrated-story.scenario-card--text_only .scenario-visual__columns { left: 18px; right: 18px; top: 52px; gap: 0.55rem; }
+.scenario-card--illustrated-story.scenario-card--text_only .scenario-visual__headline { width: 38%; }
+.scenario-card--illustrated-story.scenario-card--text_only .scenario-visual__image,
+.scenario-card--illustrated-story.scenario-card--text_only .scenario-visual__quote,
+.scenario-card--illustrated-story.scenario-card--text_only .scenario-visual__bars { display: none; }
 
 .scenario-card--modern-editorial .scenario-card__visual { background: linear-gradient(180deg, rgba(255,251,245,0.95), rgba(234,220,200,0.88)); }
-.scenario-card--modern-editorial.scenario-card--image-only .scenario-visual__image { left: 12px; right: 12px; top: 12px; bottom: 32px; }
-.scenario-card--modern-editorial.scenario-card--image-only .scenario-visual__quote { left: 16px; right: 16px; bottom: 12px; height: 12px; }
-.scenario-card--modern-editorial.scenario-card--image-only .scenario-visual__columns,
-.scenario-card--modern-editorial.scenario-card--image-only .scenario-visual__bars { display: none; }
-.scenario-card--modern-editorial.scenario-card--text-with-image .scenario-visual__image { right: 12px; top: 16px; width: 38%; height: 42%; }
-.scenario-card--modern-editorial.scenario-card--text-with-image .scenario-visual__columns { left: 16px; right: 44%; top: 44px; }
-.scenario-card--modern-editorial.scenario-card--text-with-image .scenario-visual__quote { left: 16px; right: 44%; bottom: 16px; height: 14px; }
-.scenario-card--modern-editorial.scenario-card--text-with-image .scenario-visual__bars { right: 14px; bottom: 14px; width: 34%; height: 36px; }
-.scenario-card--modern-editorial.scenario-card--text-only .scenario-visual__columns { left: 16px; right: 16px; top: 48px; }
-.scenario-card--modern-editorial.scenario-card--text-only .scenario-visual__quote { left: 16px; width: 36%; bottom: 16px; height: 14px; }
-.scenario-card--modern-editorial.scenario-card--text-only .scenario-visual__bars { right: 16px; bottom: 14px; width: 24%; height: 34px; }
-.scenario-card--modern-editorial.scenario-card--text-only .scenario-visual__image { display: none; }
+.scenario-card--modern-editorial.scenario-card--image_only .scenario-visual__image { left: 12px; right: 12px; top: 12px; bottom: 32px; }
+.scenario-card--modern-editorial.scenario-card--image_only .scenario-visual__quote { left: 16px; right: 16px; bottom: 12px; height: 12px; }
+.scenario-card--modern-editorial.scenario-card--image_only .scenario-visual__columns,
+.scenario-card--modern-editorial.scenario-card--image_only .scenario-visual__bars { display: none; }
+.scenario-card--modern-editorial.scenario-card--text_with_image .scenario-visual__image { right: 12px; top: 16px; width: 38%; height: 42%; }
+.scenario-card--modern-editorial.scenario-card--text_with_image .scenario-visual__columns { left: 16px; right: 44%; top: 44px; }
+.scenario-card--modern-editorial.scenario-card--text_with_image .scenario-visual__quote { left: 16px; right: 44%; bottom: 16px; height: 14px; }
+.scenario-card--modern-editorial.scenario-card--text_with_image .scenario-visual__bars { right: 14px; bottom: 14px; width: 34%; height: 36px; }
+.scenario-card--modern-editorial.scenario-card--text_only .scenario-visual__columns { left: 16px; right: 16px; top: 48px; }
+.scenario-card--modern-editorial.scenario-card--text_only .scenario-visual__quote { left: 16px; width: 36%; bottom: 16px; height: 14px; }
+.scenario-card--modern-editorial.scenario-card--text_only .scenario-visual__bars { right: 16px; bottom: 14px; width: 24%; height: 34px; }
+.scenario-card--modern-editorial.scenario-card--text_only .scenario-visual__image { display: none; }
 
 .scene-illustration,
 .internal-image-placeholder {
@@ -1264,3 +1264,10 @@ input, textarea, select, .ui-field input, .ui-field textarea {
 @media (max-width: 760px) {
   .panel-tabs { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 }
+
+.page-preview-canvas { position: relative; width: 100%; background: #fff; }
+.page-preview-element { position: absolute; overflow: hidden; }
+.page-preview-element--text { font-family: Georgia, 'Times New Roman', serif; color: #111; white-space: pre-wrap; line-height: 1.45; border: none; background: transparent; }
+.page-preview-element--image { border: none; }
+.page-preview-element--caption { font-size: 0.8rem; color: #555; white-space: pre-wrap; }
+.page-preview-element--editing { background: rgba(255,255,255,.96); outline: 1px solid #c7d2fe; resize: none; }

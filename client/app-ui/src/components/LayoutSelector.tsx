@@ -65,9 +65,9 @@ const LAYOUTS: FormatSettings[] = [
     typography_style: 'classic-serif',
     image_policy: 'minimal',
     preview_scenarios: [
-      { id: 'image-only', title: 'Image-only page', description: 'Reserved for atmospheric separators and section openers.' },
-      { id: 'text-with-image', title: 'Text with image', description: 'A restrained illustration paired with text.' },
-      { id: 'text-only', title: 'Text-only page', description: 'Pure reading rhythm with elegant margins.' },
+      { id: 'image_only', title: 'Image-only page', description: 'Reserved for atmospheric separators and section openers.' },
+      { id: 'text_with_image', title: 'Text with image', description: 'A restrained illustration paired with text.' },
+      { id: 'text_only', title: 'Text-only page', description: 'Pure reading rhythm with elegant margins.' },
     ],
   },
   {
@@ -78,9 +78,9 @@ const LAYOUTS: FormatSettings[] = [
     typography_style: 'story-serif',
     image_policy: 'image-led',
     preview_scenarios: [
-      { id: 'image-only', title: 'Image-only page', description: 'Full-bleed scenes that carry emotion on their own.' },
-      { id: 'text-with-image', title: 'Text with image', description: 'Narration anchored by bold illustration.' },
-      { id: 'text-only', title: 'Text-only page', description: 'Quiet breathing room between visual moments.' },
+      { id: 'image_only', title: 'Image-only page', description: 'Full-bleed scenes that carry emotion on their own.' },
+      { id: 'text_with_image', title: 'Text with image', description: 'Narration anchored by bold illustration.' },
+      { id: 'text_only', title: 'Text-only page', description: 'Quiet breathing room between visual moments.' },
     ],
   },
   {
@@ -91,9 +91,9 @@ const LAYOUTS: FormatSettings[] = [
     typography_style: 'editorial-mix',
     image_policy: 'flexible',
     preview_scenarios: [
-      { id: 'image-only', title: 'Image-only page', description: 'Poster-like visual chapters and impact spreads.' },
-      { id: 'text-with-image', title: 'Text with image', description: 'Pull-quote and image compositions.' },
-      { id: 'text-only', title: 'Text-only page', description: 'Magazine-inspired reading with structured rhythm.' },
+      { id: 'image_only', title: 'Image-only page', description: 'Poster-like visual chapters and impact spreads.' },
+      { id: 'text_with_image', title: 'Text with image', description: 'Pull-quote and image compositions.' },
+      { id: 'text_only', title: 'Text-only page', description: 'Magazine-inspired reading with structured rhythm.' },
     ],
   },
 ]

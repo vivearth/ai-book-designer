@@ -13,6 +13,7 @@ from app.core.config import get_settings
 from app.engines.context_engine import ContextEngine
 from app.engines.layout_engine import LayoutEngine
 from app.engines.layout_option_engine import LayoutOptionEngine, LayoutOptionInput
+from app.engines.layout_validator import LayoutValidator
 from app.engines.page_capacity_engine import PageCapacityEngine
 from app.engines.llm_engine import LLMEngine
 from app.engines.memory_engine import MemoryEngine
@@ -31,6 +32,7 @@ class PageService:
         self.layout_engine = LayoutEngine()
         self.memory_engine = MemoryEngine()
         self.layout_option_engine = LayoutOptionEngine()
+        self.layout_validator = LayoutValidator()
         self.llm_engine = LLMEngine()
         self.source_retrieval_engine = SourceRetrievalEngine()
         self.text_quality_engine = TextQualityEngine()
@@ -51,8 +53,9 @@ class PageService:
         return page
 
     def create_page(self, db: Session, book_id: str, payload: PageCreate) -> Page:
-        self.get_book(db, book_id)
+        book = self.get_book(db, book_id)
         page = Page(book_id=book_id, **payload.model_dump())
+        page.layout_json = self._validated_layout(book, page)
         db.add(page)
         try:
             db.commit()
@@ -80,7 +83,7 @@ class PageService:
         for key, value in updates.items():
             setattr(page, key, value)
         if not page.selected_layout_option_id:
-            page.layout_json = self.layout_engine.build_layout(book=page.book, page=page)
+            page.layout_json = self._validated_layout(page.book, page)
         if text_changed:
             self.repaginate_from_page(db, page, reason="manual_text_edit")
         if page.final_text or page.generated_text:
@@ -153,14 +156,13 @@ class PageService:
         warnings.extend(sanitize_notes)
         warnings.extend(repetition_notes)
 
-        current_text, overflow_text = self.pagination_engine.split_text_for_page(body, target_words)
         overflow_created_page: Page | None = None
         overflow_warning: str | None = None
 
         quality_skill = self.skill_registry.get("content_quality")
         quality_result = await quality_skill.run(
             {
-                "generated_text": current_text,
+                "generated_text": body,
                 "target_words": target_words,
                 "expected_content_direction": (project.content_direction if project else (book.genre or "")),
                 "user_prompt": page.user_prompt or "",
@@ -190,10 +192,9 @@ class PageService:
             retry_body = retry_result.output.get("body_text") or ""
             retry_body, retry_sanitize_notes = self.llm_engine.sanitize_generated_page_text(retry_body)
             retry_body, retry_repetition_notes = self.text_quality_engine.remove_repeated_sentences(retry_body)
-            retry_current_text, retry_overflow_text = self.pagination_engine.split_text_for_page(retry_body, target_words)
             retry_quality = await quality_skill.run(
                 {
-                    "generated_text": retry_current_text,
+                    "generated_text": retry_body,
                     "target_words": target_words,
                     "expected_content_direction": (project.content_direction if project else (book.genre or "")),
                     "user_prompt": page.user_prompt or "",
@@ -203,8 +204,7 @@ class PageService:
             )
             if retry_quality.output.get("score", 0) >= quality_report.get("score", 0):
                 content = retry_result.output
-                current_text = retry_current_text
-                overflow_text = retry_overflow_text
+                body = retry_body
                 skill_result.notes.extend(retry_result.notes)
                 quality_report = retry_quality.output
                 warnings.extend(retry_result.warnings)
@@ -212,21 +212,22 @@ class PageService:
                 warnings.extend(retry_repetition_notes)
                 warnings.append("One strict-quality regeneration pass was used.")
 
-        page.generated_text = current_text
+        page.generated_text = body
         page.status = "generated"
         if not page.selected_layout_option_id:
-            page.layout_json = self.layout_engine.build_layout(book=book, page=page)
-        if overflow_text.strip():
-            next_page = db.query(Page).filter(Page.book_id == book.id, Page.page_number == page.page_number + 1).first()
-            existed = next_page is not None
-            if not next_page:
-                next_page = self.create_page(db, book.id, PageCreate(page_number=page.page_number + 1, user_prompt=f"Continuation from page {page.page_number}"))
-                overflow_created_page = next_page
-            self._prepend_overflow_to_page(next_page, overflow_text, "generated_text", "generate_overflow", page.id)
-            if not next_page.selected_layout_option_id:
-                next_page.layout_json = self.layout_engine.build_layout(book=book, page=next_page)
-            self.repaginate_from_page(db, next_page, reason="generate_overflow")
-            if existed:
+            page.layout_json = self._validated_layout(book, page)
+        pre_md = dict(page.generation_metadata or {})
+        pre_md["target_words"] = target_words
+        page.generation_metadata = pre_md
+        existing_next = db.query(Page).filter(Page.book_id == book.id, Page.page_number == page.page_number + 1).first()
+        repagination_result = self.repaginate_from_page(db, page, reason="generate_page_fit")
+        if repagination_result["created_pages"]:
+            overflow_created_page = repagination_result["created_pages"][0]
+        else:
+            candidate_next = db.query(Page).filter(Page.book_id == book.id, Page.page_number == page.page_number + 1).first()
+            if existing_next is None and candidate_next and (candidate_next.generation_metadata or {}).get("continued_from_page_id") == page.id:
+                overflow_created_page = candidate_next
+            elif repagination_result["updated_existing_pages"] and existing_next is not None:
                 overflow_warning = "Generated text overflow was merged into existing next page."
                 warnings.append(overflow_warning)
         source_refs = content.get("source_refs", [])
@@ -251,7 +252,7 @@ class PageService:
             "target_words": target_words,
             "page_capacity_hint": request.page_capacity_hint.model_dump() if request.page_capacity_hint else None,
             "word_budget_reason": word_budget_reason,
-            "overflow_text": overflow_text if (overflow_text and not overflow_created_page) else None,
+            "overflow_text": None,
         })
         page.generation_metadata = metadata
         self.memory_engine.update_after_page(db, book=book, page=page)
@@ -337,7 +338,9 @@ class PageService:
 
         option.selected_at = utc_now()
         page.selected_layout_option_id = option.id
-        page.layout_json = dict(option.layout_json or {})
+        selected_layout = dict(option.layout_json or {})
+        self.layout_validator.assert_valid_layout(selected_layout, page=page, text=(page.final_text or page.generated_text or page.user_text or ""))
+        page.layout_json = selected_layout
         page.layout_json["layout_option_id"] = option.id
         metadata = dict(page.generation_metadata or {})
         metadata["selected_layout_option_id"] = option.id
@@ -347,12 +350,39 @@ class PageService:
         db.refresh(page)
         return page
 
+
+    def _validated_layout(self, book: Book, page: Page, variant: str | None = None) -> dict:
+        text = page.final_text or page.generated_text or page.user_text or ""
+        image_count = len(page.images)
+        fallback_variants = [
+            variant,
+            None,
+            "text_only_classic" if image_count == 0 else None,
+            "one_image_top_text_bottom" if image_count == 1 else None,
+            "two_image_grid_top_text_bottom" if image_count == 2 else None,
+            "three_plus_gallery_with_text_block" if image_count >= 3 else None,
+        ]
+        errors: list[dict] = []
+        seen: set[str] = set()
+        for candidate in [v for v in fallback_variants if v is not None or v is None]:
+            key = "__default__" if candidate is None else candidate
+            if key in seen:
+                continue
+            seen.add(key)
+            layout = self.layout_engine.build_layout(book=book, page=page, variant=candidate)
+            result = self.layout_validator.validate_layout(layout, page=page, text=text)
+            layout["validation"] = result.to_dict()
+            if result.valid:
+                return layout
+            errors.append({"variant": candidate or "default", "errors": result.errors})
+        raise HTTPException(status_code=400, detail={"message": "Unable to build a valid layout", "attempts": errors})
+
     def approve_page(self, db: Session, page_id: str) -> Page:
         page = self.get_page(db, page_id)
         page.final_text = page.final_text or page.generated_text or page.user_text
         page.status = "approved"
         if not page.selected_layout_option_id:
-            page.layout_json = self.layout_engine.build_layout(book=page.book, page=page)
+            page.layout_json = self._validated_layout(page.book, page)
         self.memory_engine.update_after_page(db, book=page.book, page=page)
         db.commit()
         db.refresh(page)
@@ -419,39 +449,56 @@ class PageService:
         metadata["image_uploads"] = uploads
         page.generation_metadata = metadata
         if not page.selected_layout_option_id:
-            page.layout_json = self.layout_engine.build_layout(book=page.book, page=page)
+            page.layout_json = self._validated_layout(page.book, page)
         self.repaginate_from_page(db, page, reason="image_added")
         db.commit()
         db.refresh(image)
         return image
 
-    def repaginate_from_page(self, db: Session, page: Page, reason: str, max_pages: int = 20) -> None:
+    def repaginate_from_page(self, db: Session, page: Page, reason: str, max_pages: int = 20) -> dict:
         current = page
+        created_pages: list[Page] = []
+        updated_existing_pages: list[Page] = []
+        warnings: list[str] = []
         for idx in range(max_pages):
             active_field = "final_text" if current.final_text else ("generated_text" if current.generated_text else "user_text")
             text = (getattr(current, active_field) or "").strip()
             if not text:
-                return
+                return {"created_pages": created_pages, "updated_existing_pages": updated_existing_pages, "warnings": warnings}
             composition = (current.layout_json or {}).get("composition", "text_only")
             capacity = self.page_capacity_engine.estimate_capacity_words(current.book, current, composition)
+            if reason == "generate_page_fit":
+                t = (current.generation_metadata or {}).get("target_words")
+                if isinstance(t, int) and t > 0:
+                    capacity = min(capacity, t)
             current_text, overflow_text = self.pagination_engine.split_text_for_page(text, capacity)
             setattr(current, active_field, current_text)
             if not current.selected_layout_option_id:
-                current.layout_json = self.layout_engine.build_layout(book=current.book, page=current)
+                current.layout_json = self._validated_layout(current.book, current)
             md = dict(current.generation_metadata or {})
             md["pagination"] = {"estimated_capacity_words": capacity, "actual_words_on_page": len(current_text.split()), "overflow_words": len(overflow_text.split()) if overflow_text else 0, "pagination_reason": reason}
             current.generation_metadata = md
             if not overflow_text.strip():
-                return
+                return {"created_pages": created_pages, "updated_existing_pages": updated_existing_pages, "warnings": warnings}
             next_page = db.query(Page).filter(Page.book_id == current.book_id, Page.page_number == current.page_number + 1).first()
             if not next_page:
                 next_page = self.create_page(db, current.book_id, PageCreate(page_number=current.page_number + 1, user_prompt=f"Continuation from page {current.page_number}"))
+                created_pages.append(next_page)
+            else:
+                updated_existing_pages.append(next_page)
             self._prepend_overflow_to_page(next_page, overflow_text, active_field, reason, current.id)
+            cur_meta = dict(current.generation_metadata or {})
+            cur_meta["continued_to_page_id"] = next_page.id
+            current.generation_metadata = cur_meta
+            cur_pag = dict((current.generation_metadata or {}).get("pagination") or {})
+            cur_pag["continued_to_page_id"] = next_page.id
+            cur_meta["pagination"] = cur_pag
+            current.generation_metadata = cur_meta
             next_md = dict(next_page.generation_metadata or {})
             next_md.update({"continued_from_page_id": current.id, "auto_continued": True, "repaginated_due_to": reason, "overflow_source_page_id": current.id})
             next_page.generation_metadata = next_md
             if not next_page.selected_layout_option_id:
-                next_page.layout_json = self.layout_engine.build_layout(book=next_page.book, page=next_page)
+                next_page.layout_json = self._validated_layout(next_page.book, next_page)
             current = next_page
             if idx == max_pages - 1 and overflow_text.strip():
                 final_md = dict(current.generation_metadata or {})
@@ -460,6 +507,8 @@ class PageService:
                 pagination["overflow_words_remaining_estimate"] = len(overflow_text.split())
                 final_md["pagination"] = pagination
                 current.generation_metadata = final_md
+                warnings.append(pagination["warning"])
+        return {"created_pages": created_pages, "updated_existing_pages": updated_existing_pages, "warnings": warnings}
 
     def _prepend_overflow_to_page(self, target_page: Page, overflow_text: str, source_field: str, reason: str, source_page_id: str) -> str:
         overflow = overflow_text.strip()
