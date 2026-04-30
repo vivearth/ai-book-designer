@@ -199,6 +199,7 @@ export function BookWorkspace({ book, pages, setPages, refreshPages, onBack, onS
   async function generateLayoutOptions() {
     setLayoutOptionsBusy(true)
     setError(null)
+    setLayoutPreviewOverride(null)
     try {
       const page = currentPage ?? (await ensurePage())
       const hasDraftInput = Boolean(draft.user_prompt.trim() || draft.user_text.trim() || draft.imageFile)
@@ -236,7 +237,13 @@ export function BookWorkspace({ book, pages, setPages, refreshPages, onBack, onS
   async function selectLayoutOption(option: PageLayoutOption) {
     if (!currentPage) return
     await guarded(async () => {
-      const updated = await api.selectLayoutOption(currentPage.id, option.id)
+      let updated: Page
+      try {
+        updated = await api.selectLayoutOption(currentPage.id, option.id)
+      } catch (err) {
+        setLayoutPreviewOverride(null)
+        throw err
+      }
       const refreshed = await refreshPagesAndGetPage(currentPage.id)
       const page = refreshed || updated
       setActiveTarget({ kind: 'page', pageId: page.id })
