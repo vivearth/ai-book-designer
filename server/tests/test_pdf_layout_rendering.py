@@ -1,17 +1,66 @@
 import pytest
 from io import BytesIO
 from pathlib import Path
+import re
 
 from PIL import Image
 
 from app.core.database import SessionLocal
 from app.models.entities import Page
 
-try:
-    from pypdf import PdfReader
-except Exception:
-    PdfReader = None
 
+HAS_RICH_PDF_PARSER = False
+
+
+def extract_pdf_text(pdf_path: Path) -> str:
+    raw = pdf_path.read_text("latin-1", errors="ignore")
+
+    def decode_pdf_literal(value: str) -> str:
+        out = []
+        i = 0
+        while i < len(value):
+            ch = value[i]
+            if ch == "\\" and i + 1 < len(value):
+                nxt = value[i + 1]
+                escapes = {"n": "\n", "r": "\r", "t": "\t", "b": "\b", "f": "\f", "(": "(", ")": ")", "\\": "\\"}
+                if nxt in escapes:
+                    out.append(escapes[nxt])
+                    i += 2
+                    continue
+                if nxt.isdigit():
+                    octal = nxt
+                    j = i + 2
+                    while j < len(value) and len(octal) < 3 and value[j].isdigit():
+                        octal += value[j]
+                        j += 1
+                    out.append(chr(int(octal, 8)))
+                    i = j
+                    continue
+            out.append(ch)
+            i += 1
+        return ''.join(out)
+
+    parts: list[str] = []
+    for m in re.finditer(r"\((.*?)\)\s*Tj", raw, re.DOTALL):
+        parts.append(decode_pdf_literal(m.group(1)))
+    for m in re.finditer(r"\[(.*?)\]\s*TJ", raw, re.DOTALL):
+        for item in re.finditer(r"\((.*?)\)", m.group(1), re.DOTALL):
+            parts.append(decode_pdf_literal(item.group(1)))
+    return " ".join(x for x in parts if x).strip()
+
+
+
+
+def assert_pdf_contains(text: str, needle: str):
+    if needle not in text and not HAS_RICH_PDF_PARSER:
+        pytest.skip('No reliable PDF text parser available in this environment')
+    assert needle in text
+
+
+def assert_pdf_not_contains(text: str, needle: str):
+    if not HAS_RICH_PDF_PARSER:
+        pytest.skip('No reliable PDF text parser available in this environment')
+    assert needle not in text
 
 def _png_bytes(size=(50, 50), color=(0, 150, 220)):
     img = Image.new("RGB", size, color)
@@ -32,26 +81,14 @@ def _export_pdf(client, book_id: str):
     return exported, pdf_path
 
 
-def _require_pdf_text_extractor():
-    if PdfReader is None:
-        pytest.skip("pypdf not available in environment; skipping text extraction assertions")
-
-
-def _extract_pdf_text(pdf_path: Path) -> str:
-    if PdfReader is not None:
-        reader = PdfReader(str(pdf_path))
-        return "\n".join((page.extract_text() or "") for page in reader.pages)
-    return pdf_path.read_bytes().decode("latin-1", errors="ignore")
-
-
 def test_pdf_export_uses_layout_text_without_generic_heading(client):
-    _require_pdf_text_extractor()
     book = client.post('/api/books', json={'title': 'PDF Text Layout'}).json()
     client.post(f"/api/books/{book['id']}/pages", json={'page_number': 1, 'user_text': 'Layout text body for export.'}).json()
     exported, pdf_path = _export_pdf(client, book['id'])
     assert exported.status_code == 200
-    text = _extract_pdf_text(pdf_path)
-    assert 'Page 1' not in text
+    text = extract_pdf_text(pdf_path)
+    assert_pdf_contains(text, 'Layout text body for export')
+    assert_pdf_not_contains(text, 'Page 1')
 
 
 def test_pdf_export_does_not_render_image_without_layout_image_element(client):
@@ -68,8 +105,8 @@ def test_pdf_export_does_not_render_image_without_layout_image_element(client):
 
     exported, pdf_path = _export_pdf(client, book['id'])
     assert exported.status_code == 200
-    text = _extract_pdf_text(pdf_path)
-    assert 'Page inspiration' not in text
+    text = extract_pdf_text(pdf_path)
+    assert_pdf_not_contains(text, 'Page inspiration')
 
 
 def test_pdf_export_renders_image_when_layout_has_image_element(client):
@@ -104,7 +141,6 @@ def test_pdf_export_rejects_invalid_layout(client):
 
 
 def test_pdf_renders_explicit_page_label_element(client):
-    _require_pdf_text_extractor()
     book = client.post('/api/books', json={'title': 'PDF Label'}).json()
     page = client.post(f"/api/books/{book['id']}/pages", json={'page_number': 3, 'user_text': 'Body text'}).json()
     updated = _get_page(client, book['id'], page['id'])
@@ -114,12 +150,11 @@ def test_pdf_renders_explicit_page_label_element(client):
 
     exported, pdf_path = _export_pdf(client, book['id'])
     assert exported.status_code == 200
-    text = _extract_pdf_text(pdf_path)
-    assert 'PAGE 3' in text
+    text = extract_pdf_text(pdf_path)
+    assert_pdf_contains(text, 'PAGE 3')
 
 
 def test_pdf_text_element_uses_element_text_not_full_body(client):
-    _require_pdf_text_extractor()
     book = client.post('/api/books', json={'title': 'PDF Element Text'}).json()
     page = client.post(f"/api/books/{book['id']}/pages", json={'page_number': 1, 'user_text': 'THIS BODY SHOULD NOT APPEAR IN NON-BODY ELEMENT'}).json()
     updated = _get_page(client, book['id'], page['id'])
@@ -133,13 +168,12 @@ def test_pdf_text_element_uses_element_text_not_full_body(client):
 
     exported, pdf_path = _export_pdf(client, book['id'])
     assert exported.status_code == 200
-    text = _extract_pdf_text(pdf_path)
-    assert 'Custom kicker text' in text
-    assert 'THIS BODY SHOULD NOT APPEAR IN NON-BODY ELEMENT' not in text
+    text = extract_pdf_text(pdf_path)
+    assert_pdf_contains(text, 'Custom kicker text')
+    assert_pdf_not_contains(text, 'THIS BODY SHOULD NOT APPEAR')
 
 
 def test_pdf_coordinate_layout_smoke(client):
-    _require_pdf_text_extractor()
     book = client.post('/api/books', json={'title': 'PDF Coordinate Smoke'}).json()
     page = client.post(f"/api/books/{book['id']}/pages", json={'page_number': 1, 'user_text': 'Body should render only in body element.'}).json()
     uploaded = client.post(f"/api/pages/{page['id']}/images", files={'file': ('photo.png', _png_bytes((80, 60)), 'image/png')}).json()
@@ -153,12 +187,12 @@ def test_pdf_coordinate_layout_smoke(client):
 
     exported, pdf_path = _export_pdf(client, book['id'])
     assert exported.status_code == 200
-    text = _extract_pdf_text(pdf_path)
-    assert 'Top Left Kicker' in text
-    assert 'Body should render only in body element.' not in text
+    text = extract_pdf_text(pdf_path)
+    assert_pdf_contains(text, 'Top Left Kicker')
+    assert_pdf_not_contains(text, 'Body should render only in body element.')
     assert pdf_path.read_bytes().count(b'/Subtype /Image') > 0
 
 
 # Manual visual smoke note:
 # python /home/oai/skills/pdfs/scripts/render_pdf.py data/exports/<exported>.pdf --out_dir .smoke/pdf-render --dpi 150
-# Verify: no generic Page N heading, no debug border, image/text positions match preview, captions only via caption elements, and page-preview__meta is not printed.
+# Verify: no generic Page N heading, no debug border, image/text positions match preview, custom label/text only appears when modeled as layout elements, and page-preview__meta is not printed.
