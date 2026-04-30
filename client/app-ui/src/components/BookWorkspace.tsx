@@ -73,6 +73,9 @@ export function BookWorkspace({ book, pages, setPages, refreshPages, onBack, onS
   useEffect(() => {
     setDraft((prev) => (prev.imageFile ? { ...prev, imageFile: null } : prev))
   }, [currentPage?.id])
+  useEffect(() => {
+    setLayoutPreviewOverride(null)
+  }, [currentPage?.id])
   useEffect(() => { if (expertMode && book.project_id) void refreshSources() }, [book.id, book.project_id, expertMode])
   useEffect(() => {
     if (!currentPage) {
@@ -218,6 +221,7 @@ export function BookWorkspace({ book, pages, setPages, refreshPages, onBack, onS
         page_capacity_hint: estimatePageCapacity(book, refreshedPage),
         instructions: draft.instruction,
       })
+      setLayoutPreviewOverride(null)
       setLayoutOptions(result.options)
       setHasSavedLayoutOptions(result.options.length > 0)
       setWarnings((prev) => [...prev, ...(result.warnings || [])])
@@ -236,6 +240,7 @@ export function BookWorkspace({ book, pages, setPages, refreshPages, onBack, onS
       const refreshed = await refreshPagesAndGetPage(currentPage.id)
       const page = refreshed || updated
       setActiveTarget({ kind: 'page', pageId: page.id })
+      setLayoutPreviewOverride(null)
       setHasSavedLayoutOptions(true)
       setLayoutOptionsOpen(false)
     })
@@ -308,7 +313,16 @@ export function BookWorkspace({ book, pages, setPages, refreshPages, onBack, onS
                     </button>
                     <button type="button" className="ghost-button" onClick={async () => {
                       if (!window.confirm(`Delete Page ${p.page_number}? This cannot be undone.`)) return
-                      const res = await api.deletePage(p.id); setPages(res.pages)
+                      const wasActive = currentPage?.id === p.id
+                      const res = await api.deletePage(p.id)
+                      setPages(res.pages)
+                      if (wasActive) {
+                        const previous = [...res.pages].filter((x) => x.page_number < p.page_number).sort((a, b) => b.page_number - a.page_number)[0]
+                        const next = [...res.pages].filter((x) => x.page_number >= p.page_number).sort((a, b) => a.page_number - b.page_number)[0]
+                        if (previous) setActiveTarget({ kind: 'page', pageId: previous.id })
+                        else if (next) setActiveTarget({ kind: 'page', pageId: next.id })
+                        else setActiveTarget({ kind: 'cover' })
+                      }
                     }}>🗑</button>
                   </div>
                 ))}
@@ -338,6 +352,7 @@ export function BookWorkspace({ book, pages, setPages, refreshPages, onBack, onS
             <section className="glass-card rail-panel">
               <h3>Layout actions</h3>
               <p className="muted">Create alternative arrangements for the current text and images. Selecting one updates the preview without rewriting content.</p>
+              <p className="muted">Creates two alternatives for now.</p>
               <p className="muted">{currentPage?.selected_layout_option_id ? `Selected option: ${currentPage.selected_layout_option_id}` : 'No layout option selected yet.'}</p>
               <div className="chat-actions">
                 <button type="button" className="premium-button" onClick={() => void generateLayoutOptions()} disabled={busy || layoutOptionsBusy}>Generate layout options</button>
@@ -423,9 +438,9 @@ export function BookWorkspace({ book, pages, setPages, refreshPages, onBack, onS
         options={layoutOptions}
         selectedOptionId={currentPage?.selected_layout_option_id}
         generating={layoutOptionsBusy}
-        onClose={() => setLayoutOptionsOpen(false)}
+        onClose={() => { setLayoutPreviewOverride(null); setLayoutOptionsOpen(false) }}
         onPreview={(option) => setLayoutPreviewOverride(option.layout_json)}
-        onUseLayout={(option) => { setLayoutPreviewOverride(null); void selectLayoutOption(option) }}
+        onUseLayout={(option) => { void selectLayoutOption(option) }}
         onRegenerate={() => void generateLayoutOptions()}
       />
     </div>

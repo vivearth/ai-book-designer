@@ -497,6 +497,7 @@ class PageService:
         stored_filename = image.stored_filename
         db.delete(image)
         db.flush()
+        db.expire(page, ["images"])
         if stored_filename and db.query(PageImage).filter(PageImage.stored_filename == stored_filename).count() == 0:
             self._maybe_delete_file(stored_filename)
         md = dict(page.generation_metadata or {})
@@ -534,9 +535,16 @@ class PageService:
                 md.pop("continued_from_page_id", None)
             if md.get("continued_to_page_id") == deleted_id:
                 md.pop("continued_to_page_id", None)
+            pag = dict(md.get("pagination") or {})
+            if pag.get("continued_from_page_id") == deleted_id:
+                pag.pop("continued_from_page_id", None)
+            if pag.get("continued_to_page_id") == deleted_id:
+                pag.pop("continued_to_page_id", None)
+            md["pagination"] = pag
             p.generation_metadata = md
             if not p.selected_layout_option_id:
                 p.layout_json = self._validated_layout(p.book, p)
+        db.flush()
         db.commit()
         return {"deleted_page_id": deleted_id, "book_id": book_id, "pages": remaining, "deleted_page_number": deleted_num}
 
