@@ -41,3 +41,17 @@ def test_old_layout_without_elements_is_rebuilt_on_write_only(client):
     client.patch(f"/api/pages/{page['id']}",json={'layout_json':{'text_area':{'x':0.1}}})
     got=client.get(f"/api/books/{book['id']}/pages").json()[0]
     assert got['layout_json'].get('layout_schema') == 'page-layout-1'
+
+
+
+def test_page2_layout_does_not_reference_page1_image_ids(client):
+    book=client.post('/api/books',json={'title':'t','book_type_id':'custom'}).json()
+    p1=client.post(f"/api/books/{book['id']}/pages",json={'page_number':1,'user_text':'first page text'}).json()
+    p2=client.post(f"/api/books/{book['id']}/pages",json={'page_number':2,'user_text':'second page text'}).json()
+    img=client.post(f"/api/pages/{p1['id']}/images",files={'file':('a.png',_mk_png(),'image/png')}).json()
+
+    pages=client.get(f"/api/books/{book['id']}/pages").json()
+    page2=next(p for p in pages if p['id']==p2['id'])
+    layout=page2.get('layout_json') or {}
+    image_ids=[el.get('image_id') for el in (layout.get('elements') or []) if el.get('type')=='image']
+    assert img['id'] not in image_ids
