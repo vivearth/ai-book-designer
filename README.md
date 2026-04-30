@@ -260,3 +260,19 @@ Notes:
 - Provider errors fail visibly by default (HTTP 502), so HF/Ollama failures are not silently masked.
 - Set `LLM_FALLBACK_TO_MOCK_ON_PROVIDER_ERROR=true` only for demos.
 - HF models must be Hugging Face model IDs (for example `Qwen/Qwen2.5-7B-Instruct`), not Ollama tags.
+
+
+### PDF visual smoke verification
+
+To render exported PDF pages to PNGs for smoke review, run:
+
+```bash
+python /home/oai/skills/pdfs/scripts/render_pdf.py data/exports/<exported>.pdf --out_dir .smoke/pdf-render --dpi 150
+```
+
+Manual checks:
+- no generic `Page N` heading unless explicit layout element
+- no debug safe-area border
+- image/text positions roughly match preview
+- captions render only when caption elements exist
+- editor chrome (`page-preview__meta`) is not printed

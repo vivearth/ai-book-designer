@@ -14,6 +14,11 @@ from app.models.entities import Book, Page, PageImage
 
 
 class PdfEngine:
+    # Mirrors preview visual shell layers: paper bg -> page shell -> spine accent -> layout elements.
+    PAPER_BACKGROUND = "#F7F0E6"
+    PAGE_SHELL_FILL = "#FFFFFF"
+    SPINE_ACCENT = "#8B4A43"
+    SHEET_MARGIN_PT = 36
     def export_book(self, db: Session, *, book: Book, approved_only: bool = False) -> tuple[str, Path]:
         settings = get_settings()
         safe_title = "".join(ch if ch.isalnum() else "_" for ch in book.title.lower()).strip("_") or "untitled"
@@ -35,10 +40,10 @@ class PdfEngine:
 
     def _render_cover(self, c: canvas.Canvas, book: Book) -> None:
         w, h = A4
-        c.setFillColor(colors.HexColor("#F7F0E6")); c.rect(0, 0, w, h, fill=1, stroke=0)
+        c.setFillColor(colors.HexColor(self.PAPER_BACKGROUND)); c.rect(0, 0, w, h, fill=1, stroke=0)
         inset = 48
-        c.setFillColor(colors.white); c.roundRect(inset, inset, w - (inset * 2), h - (inset * 2), 10, fill=1, stroke=0)
-        c.setFillColor(colors.HexColor("#8B4A43")); c.rect(inset + 16, inset + 16, 14, h - (inset * 2) - 32, fill=1, stroke=0)
+        c.setFillColor(colors.HexColor(self.PAGE_SHELL_FILL)); c.roundRect(inset, inset, w - (inset * 2), h - (inset * 2), 10, fill=1, stroke=0)
+        c.setFillColor(colors.HexColor(self.SPINE_ACCENT)); c.rect(inset + 16, inset + 16, 14, h - (inset * 2) - 32, fill=1, stroke=0)
         title = self._fit_title(book.title or "Untitled")
         c.setFillColor(colors.HexColor("#15120E"))
         c.setFont("Times-Bold", 34)
@@ -66,7 +71,7 @@ class PdfEngine:
             raise ValueError(f"Page {page.page_number} has invalid layout_json; regenerate layout before export.")
 
         sheet_w, sheet_h = A4
-        margin = 36
+        margin = self.SHEET_MARGIN_PT
         layout_w = float(page_meta["width"])
         layout_h = float(page_meta["height"])
         scale = min((sheet_w - 2 * margin) / layout_w, (sheet_h - 2 * margin) / layout_h)
@@ -75,9 +80,9 @@ class PdfEngine:
         origin_x = (sheet_w - render_w) / 2
         origin_y = (sheet_h - render_h) / 2
 
-        c.setFillColor(colors.HexColor("#F7F0E6")); c.rect(0, 0, sheet_w, sheet_h, fill=1, stroke=0)
-        c.setFillColor(colors.white); c.roundRect(origin_x, origin_y, render_w, render_h, 8, fill=1, stroke=0)
-        c.setFillColor(colors.HexColor("#8B4A43")); c.rect(origin_x + 12, origin_y + 12, 10, max(24, render_h - 24), fill=1, stroke=0)
+        c.setFillColor(colors.HexColor(self.PAPER_BACKGROUND)); c.rect(0, 0, sheet_w, sheet_h, fill=1, stroke=0)
+        c.setFillColor(colors.HexColor(self.PAGE_SHELL_FILL)); c.roundRect(origin_x, origin_y, render_w, render_h, 8, fill=1, stroke=0)
+        c.setFillColor(colors.HexColor(self.SPINE_ACCENT)); c.rect(origin_x + 12, origin_y + 12, 10, max(24, render_h - 24), fill=1, stroke=0)
 
 
         typography = layout.get("typography") or {}
