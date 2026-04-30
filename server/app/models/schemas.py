@@ -315,6 +315,13 @@ class LayoutOptionsResponse(BaseModel):
     warnings: list[str] = Field(default_factory=list)
 
 
+class DeletePageResponse(BaseModel):
+    deleted_page_id: str
+    book_id: str
+    deleted_page_number: int
+    pages: list[PageRead] = Field(default_factory=list)
+
+
 class PdfExportResponse(BaseModel):
     book_id: str
     filename: str

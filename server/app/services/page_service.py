@@ -3,6 +3,7 @@ from __future__ import annotations
 import re
 import hashlib
 from io import BytesIO
+from pathlib import Path
 
 from fastapi import HTTPException, UploadFile
 from PIL import Image, ImageOps
@@ -89,6 +90,8 @@ class PageService:
         if not page.selected_layout_option_id:
             page.layout_json = self._validated_layout(page.book, page)
         if text_changed:
+            db.query(PageLayoutOption).filter(PageLayoutOption.page_id == page.id).delete()
+            page.selected_layout_option_id = None
             self.repaginate_from_page(db, page, reason="manual_text_edit")
         if page.final_text or page.generated_text:
             self.memory_engine.update_after_page(db, book=page.book, page=page)
@@ -216,8 +219,14 @@ class PageService:
                 warnings.extend(retry_repetition_notes)
                 warnings.append("One strict-quality regeneration pass was used.")
 
+        continuation_prefix = self._existing_continuation_prefix(page)
+        if continuation_prefix:
+            body = f"{continuation_prefix}\n\n{body}".strip()
+            warnings.append("Existing continuation text was preserved before newly generated content.")
         page.generated_text = body
         page.status = "generated"
+        db.query(PageLayoutOption).filter(PageLayoutOption.page_id == page.id).delete()
+        page.selected_layout_option_id = None
         if not page.selected_layout_option_id:
             page.layout_json = self._validated_layout(book, page)
         pre_md = dict(page.generation_metadata or {})
@@ -350,6 +359,11 @@ class PageService:
         metadata["selected_layout_option_id"] = option.id
         metadata["selected_layout_option_label"] = option.label
         page.generation_metadata = metadata
+        result = self.repaginate_from_page(db, page, reason="layout_option_selected")
+        if result["warnings"]:
+            metadata = dict(page.generation_metadata or {})
+            metadata["layout_option_notice"] = "; ".join(result["warnings"])
+            page.generation_metadata = metadata
         db.commit()
         db.refresh(page)
         return page
@@ -459,6 +473,8 @@ class PageService:
         }
         metadata["image_uploads"] = uploads
         page.generation_metadata = metadata
+        db.query(PageLayoutOption).filter(PageLayoutOption.page_id == page.id).delete()
+        page.selected_layout_option_id = None
         if not page.selected_layout_option_id:
             page.layout_json = self._validated_layout(page.book, page)
         self.repaginate_from_page(db, page, reason="image_added")
@@ -466,13 +482,79 @@ class PageService:
         db.refresh(image)
         return image
 
+    def _maybe_delete_file(self, stored_filename: str | None) -> None:
+        if not stored_filename:
+            return
+        path = Path(get_settings().upload_dir) / stored_filename
+        if path.exists():
+            path.unlink()
+
+    def delete_image(self, db: Session, page_id: str, image_id: str) -> Page:
+        page = self.get_page(db, page_id)
+        image = db.get(PageImage, image_id)
+        if not image or image.page_id != page.id:
+            raise HTTPException(status_code=404, detail="Image not found for this page")
+        stored_filename = image.stored_filename
+        db.delete(image)
+        db.flush()
+        db.expire(page, ["images"])
+        if stored_filename and db.query(PageImage).filter(PageImage.stored_filename == stored_filename).count() == 0:
+            self._maybe_delete_file(stored_filename)
+        md = dict(page.generation_metadata or {})
+        uploads = dict(md.get("image_uploads") or {})
+        uploads.pop(image_id, None)
+        md["image_uploads"] = uploads
+        page.generation_metadata = md
+        db.query(PageLayoutOption).filter(PageLayoutOption.page_id == page.id).delete()
+        page.selected_layout_option_id = None
+        page.layout_json = self._validated_layout(page.book, page)
+        self.repaginate_from_page(db, page, reason="image_deleted")
+        db.commit()
+        db.refresh(page)
+        return page
+
+    def delete_page(self, db: Session, page_id: str) -> dict:
+        page = self.get_page(db, page_id)
+        book_id = page.book_id
+        for image in list(page.images):
+            stored_filename = image.stored_filename
+            db.delete(image)
+            db.flush()
+            if stored_filename and db.query(PageImage).filter(PageImage.stored_filename == stored_filename).count() == 0:
+                self._maybe_delete_file(stored_filename)
+        db.query(PageLayoutOption).filter(PageLayoutOption.page_id == page.id).delete()
+        deleted_num = page.page_number
+        deleted_id = page.id
+        db.delete(page)
+        db.flush()
+        remaining = db.query(Page).filter(Page.book_id == book_id).order_by(Page.page_number.asc()).all()
+        for idx, p in enumerate(remaining, start=1):
+            p.page_number = idx
+            md = dict(p.generation_metadata or {})
+            if md.get("continued_from_page_id") == deleted_id:
+                md.pop("continued_from_page_id", None)
+            if md.get("continued_to_page_id") == deleted_id:
+                md.pop("continued_to_page_id", None)
+            pag = dict(md.get("pagination") or {})
+            if pag.get("continued_from_page_id") == deleted_id:
+                pag.pop("continued_from_page_id", None)
+            if pag.get("continued_to_page_id") == deleted_id:
+                pag.pop("continued_to_page_id", None)
+            md["pagination"] = pag
+            p.generation_metadata = md
+            if not p.selected_layout_option_id:
+                p.layout_json = self._validated_layout(p.book, p)
+        db.flush()
+        db.commit()
+        return {"deleted_page_id": deleted_id, "book_id": book_id, "pages": remaining, "deleted_page_number": deleted_num}
+
     def repaginate_from_page(self, db: Session, page: Page, reason: str, max_pages: int = 20) -> dict:
         current = page
         created_pages: list[Page] = []
         updated_existing_pages: list[Page] = []
         warnings: list[str] = []
         for idx in range(max_pages):
-            active_field = "final_text" if current.final_text else ("generated_text" if current.generated_text else "user_text")
+            active_field = self._active_text_field(current)
             text = (getattr(current, active_field) or "").strip()
             if not text:
                 return {"created_pages": created_pages, "updated_existing_pages": updated_existing_pages, "warnings": warnings}
@@ -622,3 +704,12 @@ class PageService:
         if len(text.split()) > 700:
             notes.append("Generated page may be too long for a single page layout.")
         return notes
+    def _active_text_field(self, page: Page) -> str:
+        return "final_text" if page.final_text else ("generated_text" if page.generated_text else "user_text")
+
+    def _existing_continuation_prefix(self, page: Page) -> str | None:
+        md = dict(page.generation_metadata or {})
+        if not md.get("continued_from_page_id"):
+            return None
+        existing = (getattr(page, self._active_text_field(page)) or "").strip()
+        return existing or None

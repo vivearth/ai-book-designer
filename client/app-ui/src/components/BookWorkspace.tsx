@@ -47,6 +47,7 @@ export function BookWorkspace({ book, pages, setPages, refreshPages, onBack, onS
   const [layoutOptionsBusy, setLayoutOptionsBusy] = useState(false)
   const [hasSavedLayoutOptions, setHasSavedLayoutOptions] = useState(false)
   const [activeRailPanel, setActiveRailPanel] = useState<RailPanel>('content')
+  const [layoutPreviewOverride, setLayoutPreviewOverride] = useState<Record<string, unknown> | null>(null)
 
   const sortedPages = useMemo(() => [...pages].sort((a, b) => a.page_number - b.page_number), [pages])
   const currentPage = activeTarget.kind === 'page' ? sortedPages.find((page) => page.id === activeTarget.pageId) ?? null : null
@@ -71,6 +72,9 @@ export function BookWorkspace({ book, pages, setPages, refreshPages, onBack, onS
 
   useEffect(() => {
     setDraft((prev) => (prev.imageFile ? { ...prev, imageFile: null } : prev))
+  }, [currentPage?.id])
+  useEffect(() => {
+    setLayoutPreviewOverride(null)
   }, [currentPage?.id])
   useEffect(() => { if (expertMode && book.project_id) void refreshSources() }, [book.id, book.project_id, expertMode])
   useEffect(() => {
@@ -195,6 +199,7 @@ export function BookWorkspace({ book, pages, setPages, refreshPages, onBack, onS
   async function generateLayoutOptions() {
     setLayoutOptionsBusy(true)
     setError(null)
+    setLayoutPreviewOverride(null)
     try {
       const page = currentPage ?? (await ensurePage())
       const hasDraftInput = Boolean(draft.user_prompt.trim() || draft.user_text.trim() || draft.imageFile)
@@ -217,6 +222,7 @@ export function BookWorkspace({ book, pages, setPages, refreshPages, onBack, onS
         page_capacity_hint: estimatePageCapacity(book, refreshedPage),
         instructions: draft.instruction,
       })
+      setLayoutPreviewOverride(null)
       setLayoutOptions(result.options)
       setHasSavedLayoutOptions(result.options.length > 0)
       setWarnings((prev) => [...prev, ...(result.warnings || [])])
@@ -231,10 +237,17 @@ export function BookWorkspace({ book, pages, setPages, refreshPages, onBack, onS
   async function selectLayoutOption(option: PageLayoutOption) {
     if (!currentPage) return
     await guarded(async () => {
-      const updated = await api.selectLayoutOption(currentPage.id, option.id)
+      let updated: Page
+      try {
+        updated = await api.selectLayoutOption(currentPage.id, option.id)
+      } catch (err) {
+        setLayoutPreviewOverride(null)
+        throw err
+      }
       const refreshed = await refreshPagesAndGetPage(currentPage.id)
       const page = refreshed || updated
       setActiveTarget({ kind: 'page', pageId: page.id })
+      setLayoutPreviewOverride(null)
       setHasSavedLayoutOptions(true)
       setLayoutOptionsOpen(false)
     })
@@ -300,10 +313,25 @@ export function BookWorkspace({ book, pages, setPages, refreshPages, onBack, onS
               <h3>Pages</h3>
               <div className="page-list-panel">
                 {sortedPages.map((p) => (
-                  <button key={p.id} type="button" className={`page-row ${currentPage?.id === p.id ? 'is-active' : ''}`} onClick={() => setActiveTarget({ kind: 'page', pageId: p.id })}>
-                    <span>Page {p.page_number}</span>
-                    <small>{p.status}</small>
-                  </button>
+                  <div key={p.id} className="chat-actions">
+                    <button type="button" className={`page-row ${currentPage?.id === p.id ? 'is-active' : ''}`} onClick={() => setActiveTarget({ kind: 'page', pageId: p.id })}>
+                      <span>Page {p.page_number}</span>
+                      <small>{p.status}</small>
+                    </button>
+                    <button type="button" className="ghost-button" onClick={async () => {
+                      if (!window.confirm(`Delete Page ${p.page_number}? This cannot be undone.`)) return
+                      const wasActive = currentPage?.id === p.id
+                      const res = await api.deletePage(p.id)
+                      setPages(res.pages)
+                      if (wasActive) {
+                        const previous = [...res.pages].filter((x) => x.page_number < p.page_number).sort((a, b) => b.page_number - a.page_number)[0]
+                        const next = [...res.pages].filter((x) => x.page_number >= p.page_number).sort((a, b) => a.page_number - b.page_number)[0]
+                        if (previous) setActiveTarget({ kind: 'page', pageId: previous.id })
+                        else if (next) setActiveTarget({ kind: 'page', pageId: next.id })
+                        else setActiveTarget({ kind: 'cover' })
+                      }
+                    }}>🗑</button>
+                  </div>
                 ))}
               </div>
               <div className="chat-actions">
@@ -330,12 +358,13 @@ export function BookWorkspace({ book, pages, setPages, refreshPages, onBack, onS
           {activeRailPanel === 'layout' ? (
             <section className="glass-card rail-panel">
               <h3>Layout actions</h3>
-              <p className="muted">Generate two visual arrangements for this page without rewriting the text.</p>
-              <p className="muted">{currentPage?.selected_layout_option_id ? 'A layout option is currently selected for this page.' : 'No layout option selected yet.'}</p>
+              <p className="muted">Create alternative arrangements for the current text and images. Selecting one updates the preview without rewriting content.</p>
+              <p className="muted">Creates two alternatives for now.</p>
+              <p className="muted">{currentPage?.selected_layout_option_id ? `Selected option: ${currentPage.selected_layout_option_id}` : 'No layout option selected yet.'}</p>
               <div className="chat-actions">
-                <button type="button" className="premium-button" onClick={() => void generateLayoutOptions()} disabled={busy || layoutOptionsBusy}>Generate 2 Layouts</button>
+                <button type="button" className="premium-button" onClick={() => void generateLayoutOptions()} disabled={busy || layoutOptionsBusy}>Generate layout options</button>
                 {hasSavedLayoutOptions || Boolean(currentPage?.selected_layout_option_id) ? (
-                  <button type="button" className="ghost-button" onClick={() => void viewLayoutOptions()} disabled={busy || layoutOptionsBusy}>View options</button>
+                  <button type="button" className="ghost-button" onClick={() => void viewLayoutOptions()} disabled={busy || layoutOptionsBusy}>View layout options</button>
                 ) : null}
               </div>
             </section>
@@ -358,12 +387,20 @@ export function BookWorkspace({ book, pages, setPages, refreshPages, onBack, onS
                 <button type="button" className="ghost-button" onClick={() => void saveDraft()} disabled={busy}>Save image to page</button>
                 <button type="button" className="premium-button" onClick={() => void generatePage()} disabled={busy}>Generate with image</button>
               </div>
+              <h4>Current page images</h4>
+              {currentPage?.images?.length ? currentPage.images.map((img) => (
+                <div key={img.id} className="chat-actions"><small>{img.original_filename} {img.caption ? `— ${img.caption}` : ''}</small><button type="button" className="ghost-button" onClick={async () => {
+                  if (!currentPage) return
+                  if (!window.confirm(`Delete this image from Page ${currentPage.page_number}?`)) return
+                  await api.deletePageImage(currentPage.id, img.id); await refreshPages()
+                }}>Delete</button></div>
+              )) : <p className="muted">No images on this page.</p>}
             </section>
           ) : null}
 
           {expertMode ? <QualityReportPanel report={qualityReport || undefined} warnings={warnings} /> : null}
         </div>
-        <BookPreviewPane book={book} pages={sortedPages} activeTarget={activeTarget} onSelectCover={() => setActiveTarget({ kind: 'cover' })} onSelectPage={(id) => setActiveTarget({ kind: 'page', pageId: id })} onCreateNextPage={() => void createNextPage()} onImageSelect={() => setActiveRailPanel('images')} onTextSave={async (page, nextText) => {
+        <BookPreviewPane book={book} pages={sortedPages} activeTarget={activeTarget} layoutOverride={layoutPreviewOverride} onSelectCover={() => setActiveTarget({ kind: 'cover' })} onSelectPage={(id) => setActiveTarget({ kind: 'page', pageId: id })} onCreateNextPage={() => void createNextPage()} onImageSelect={() => setActiveRailPanel('images')} onTextSave={async (page, nextText) => {
           const field = page.final_text ? 'final_text' : (page.generated_text ? 'generated_text' : 'user_text')
           await api.updatePage(page.id, { [field]: nextText } as Partial<Page>)
           await refreshPages()
@@ -408,8 +445,9 @@ export function BookWorkspace({ book, pages, setPages, refreshPages, onBack, onS
         options={layoutOptions}
         selectedOptionId={currentPage?.selected_layout_option_id}
         generating={layoutOptionsBusy}
-        onClose={() => setLayoutOptionsOpen(false)}
-        onSelect={(option) => void selectLayoutOption(option)}
+        onClose={() => { setLayoutPreviewOverride(null); setLayoutOptionsOpen(false) }}
+        onPreview={(option) => setLayoutPreviewOverride(option.layout_json)}
+        onUseLayout={(option) => { void selectLayoutOption(option) }}
         onRegenerate={() => void generateLayoutOptions()}
       />
     </div>

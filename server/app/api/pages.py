@@ -4,7 +4,7 @@ from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile
 from sqlalchemy.orm import Session
 
 from app.core.database import get_db
-from app.models.schemas import GenerationRequest, GenerationResponse, LayoutOptionsGenerateRequest, LayoutOptionsResponse, PageCreate, PageImageRead, PageLayoutOptionRead, PageRead, PageUpdate
+from app.models.schemas import DeletePageResponse, GenerationRequest, GenerationResponse, LayoutOptionsGenerateRequest, LayoutOptionsResponse, PageCreate, PageImageRead, PageLayoutOptionRead, PageRead, PageUpdate
 from app.llm.providers.errors import ProviderError
 from app.services.page_service import PageService
 
@@ -81,3 +81,13 @@ async def upload_page_image(
     db: Session = Depends(get_db),
 ):
     return await service.upload_image(db, page_id, file, caption)
+
+
+@router.delete("/pages/{page_id}/images/{image_id}", response_model=PageRead)
+def delete_page_image(page_id: str, image_id: str, db: Session = Depends(get_db)):
+    return service.delete_image(db, page_id, image_id)
+
+
+@router.delete("/pages/{page_id}", response_model=DeletePageResponse)
+def delete_page(page_id: str, db: Session = Depends(get_db)):
+    return service.delete_page(db, page_id)
