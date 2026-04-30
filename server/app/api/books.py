@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from fastapi import APIRouter, Depends, File, UploadFile
+from fastapi import APIRouter, Depends, File, HTTPException, UploadFile
 from sqlalchemy.orm import Session
 
 from app.core.database import get_db
@@ -50,5 +50,8 @@ async def generate_book_draft(book_id: str, payload: DraftGenerationRequest, db:
 @router.post("/{book_id}/export/pdf", response_model=PdfExportResponse)
 def export_book_pdf(book_id: str, payload: PdfExportRequest, db: Session = Depends(get_db)):
     book = service.get_book(db, book_id)
-    filename, _ = pdf_engine.export_book(db, book=book, approved_only=payload.approved_only)
+    try:
+        filename, _ = pdf_engine.export_book(db, book=book, approved_only=payload.approved_only)
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
     return PdfExportResponse(book_id=book.id, filename=filename, download_url=f"/api/exports/{filename}")
