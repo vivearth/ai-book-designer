@@ -56,6 +56,9 @@ class PageService:
         book = self.get_book(db, book_id)
         page = Page(book_id=book_id, **payload.model_dump())
         page.layout_json = self._validated_layout(book, page)
+        layout_validation = self.layout_validator.validate_layout(page.layout_json)
+        if not layout_validation.valid:
+            raise HTTPException(status_code=500, detail="Could not initialize a valid page layout")
         db.add(page)
         try:
             db.commit()

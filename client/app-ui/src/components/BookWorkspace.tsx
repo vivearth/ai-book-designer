@@ -77,6 +77,17 @@ export function BookWorkspace({ book, pages, setPages, refreshPages, onBack, onS
     })()
   }, [currentPage?.id])
 
+
+  function hasValidLayoutSchema(page: Page | null | undefined) {
+    return Boolean(page?.layout_json && (page.layout_json as any).layout_schema === 'page-layout-1' && Array.isArray((page.layout_json as any).elements) && (page.layout_json as any).elements.length > 0)
+  }
+
+  async function refreshPagesAndGetPage(pageId: string): Promise<Page | null> {
+    const latestPages = await api.listPages(book.id)
+    setPages(latestPages)
+    return latestPages.find((item) => item.id === pageId) || null
+  }
+
   async function refreshSources() {
     if (!book.project_id) return
     setSources(await api.listSources(book.project_id))
@@ -89,8 +100,9 @@ export function BookWorkspace({ book, pages, setPages, refreshPages, onBack, onS
 
   async function ensurePage() {
     if (currentPage && currentPage.status !== 'approved') return currentPage
-    const page = await api.createNextPage(book.id)
-    await refreshPages()
+    const created = await api.createNextPage(book.id)
+    const refreshed = await refreshPagesAndGetPage(created.id)
+    const page = refreshed || created
     setActiveTarget({ kind: 'page', pageId: page.id })
     return page
   }
@@ -138,8 +150,9 @@ export function BookWorkspace({ book, pages, setPages, refreshPages, onBack, onS
 
   async function createNextPage() {
     await guarded(async () => {
-      const page = await api.createNextPage(book.id)
-      await refreshPages()
+      const created = await api.createNextPage(book.id)
+      const refreshed = await refreshPagesAndGetPage(created.id)
+      const page = hasValidLayoutSchema(created) ? created : (refreshed || created)
       setActiveTarget({ kind: 'page', pageId: page.id })
       setDraft({ ...INITIAL_DRAFT, instruction: draft.instruction })
     })
@@ -198,9 +211,10 @@ export function BookWorkspace({ book, pages, setPages, refreshPages, onBack, onS
   async function selectLayoutOption(option: PageLayoutOption) {
     if (!currentPage) return
     await guarded(async () => {
-      await api.selectLayoutOption(currentPage.id, option.id)
-      await refreshPages()
-      setActiveTarget({ kind: 'page', pageId: currentPage.id })
+      const updated = await api.selectLayoutOption(currentPage.id, option.id)
+      const refreshed = await refreshPagesAndGetPage(currentPage.id)
+      const page = refreshed || updated
+      setActiveTarget({ kind: 'page', pageId: page.id })
       setHasSavedLayoutOptions(true)
       setLayoutOptionsOpen(false)
     })

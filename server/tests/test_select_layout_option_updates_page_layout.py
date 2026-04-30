@@ -19,6 +19,7 @@ def test_select_layout_option_updates_page_layout(client):
 
     assert selected_page['layout_json']['variant'] == option_b['layout_json']['variant']
     assert selected_page['selected_layout_option_id'] == option_b['id']
+    assert selected_page['layout_json']['layout_option_id'] == option_b['id']
     assert selected_page['generation_metadata']['selected_layout_option_id'] == option_b['id']
     assert selected_page['user_text'] == 'Page content for layout options selection.'
     assert selected_page['generated_text'] == 'Generated paragraph should remain untouched.'
