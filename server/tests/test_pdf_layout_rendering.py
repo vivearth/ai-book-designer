@@ -20,11 +20,18 @@ def _get_page(client, book_id: str, page_id: str) -> dict:
     return next(p for p in pages if p["id"] == page_id)
 
 
-def _export_pdf_bytes(client, book_id: str) -> bytes:
+def _export_pdf(client, book_id: str):
     exported = client.post(f"/api/books/{book_id}/export/pdf", json={"approved_only": False})
+    payload = exported.json() if exported.status_code == 200 else None
+    pdf_path = (Path("data/exports") / payload["filename"]) if payload else None
+    return exported, pdf_path
+
+
+def _export_pdf_bytes(client, book_id: str) -> bytes:
+    exported, pdf_path = _export_pdf(client, book_id)
     assert exported.status_code == 200
-    payload = exported.json()
-    return (Path("data/exports") / payload["filename"]).read_bytes()
+    assert pdf_path is not None and pdf_path.exists()
+    return pdf_path.read_bytes()
 
 
 def test_pdf_export_uses_layout_text_without_generic_heading(client):
@@ -79,8 +86,9 @@ def test_pdf_export_rejects_invalid_layout(client):
         row.layout_json = {}
         db.commit()
 
-    with pytest.raises(ValueError, match='invalid layout_json'):
-        client.post(f"/api/books/{book['id']}/export/pdf", json={'approved_only': False})
+    exported, _ = _export_pdf(client, book["id"])
+    assert exported.status_code == 400
+    assert "Page 1 has invalid layout_json" in exported.text
 
 
 def test_cover_title_fit_with_long_title(client):
@@ -90,3 +98,8 @@ def test_cover_title_fit_with_long_title(client):
 
     pdf_bytes = _export_pdf_bytes(client, book['id'])
     assert b'This is an extremely long cover title' not in pdf_bytes
+
+
+# Manual visual smoke note:
+# 1) Generate a page with image + text, export PDF, render PDF pages to PNGs.
+# 2) Confirm there is no generic heading, no safe-area debug border, and element placement matches preview.

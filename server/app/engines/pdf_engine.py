@@ -79,17 +79,17 @@ class PdfEngine:
         c.setFillColor(colors.white); c.roundRect(origin_x, origin_y, render_w, render_h, 8, fill=1, stroke=0)
         c.setFillColor(colors.HexColor("#8B4A43")); c.rect(origin_x + 12, origin_y + 12, 10, max(24, render_h - 24), fill=1, stroke=0)
 
-        safe = page_meta.get("safe_area") or {"x": 0, "y": 0, "w": layout_w, "h": layout_h}
-        sx, sy, sw, sh = (safe.get("x", 0), safe.get("y", 0), safe.get("w", layout_w), safe.get("h", layout_h))
-        c.setStrokeColor(colors.HexColor("#E8DED1")); c.setLineWidth(0.8)
-        c.rect(origin_x + sx * scale, origin_y + render_h - (sy + sh) * scale, sw * scale, sh * scale, fill=0, stroke=1)
+
+        typography = layout.get("typography") or {}
+        body_size = float(typography.get("body_size", 11) or 11)
+        line_height = float(typography.get("line_height", 1.5) or 1.5)
 
         used_images: set[str] = set()
         for element in sorted(elements, key=lambda e: e.get("z", 0)):
-            self._render_element(c, element, page, origin_x, origin_y, layout_w, layout_h, scale, upload_dir, used_images)
+            self._render_element(c, element, page, origin_x, origin_y, layout_w, layout_h, scale, upload_dir, used_images, body_size, line_height)
         c.showPage()
 
-    def _render_element(self, c, element, page, ox, oy, layout_w, layout_h, scale, upload_dir, used_images):
+    def _render_element(self, c, element, page, ox, oy, layout_w, layout_h, scale, upload_dir, used_images, body_size: float, line_height: float):
         box = element.get("box") or {}
         x, y, w, h = box.get("x"), box.get("y"), box.get("w"), box.get("h")
         if any(v is None for v in (x, y, w, h)):
@@ -101,14 +101,17 @@ class PdfEngine:
         t = element.get("type")
         if t == "text":
             text = page.final_text or page.generated_text or page.user_text or ""
-            self._draw_wrapped_text(c, text, pdf_x, pdf_y, pdf_w, pdf_h, 11)
+            role = (element.get("role") or "").lower()
+            font = "Times-Bold" if role in {"page_label", "label", "title", "kicker"} else "Times-Roman"
+            self._draw_wrapped_text(c, text, pdf_x, pdf_y, pdf_w, pdf_h, body_size, line_height=line_height, font=font)
         elif t == "caption":
             caption = element.get("text") or ""
             if not caption and element.get("image_id"):
                 img = self._resolve_image(page, element.get("image_id"), used_images)
                 caption = img.caption if img else ""
             if caption:
-                self._draw_wrapped_text(c, caption, pdf_x, pdf_y, pdf_w, pdf_h, 10, italic=True)
+                caption_size = max(8.0, body_size - 1.0)
+                self._draw_wrapped_text(c, caption, pdf_x, pdf_y, pdf_w, pdf_h, caption_size, line_height=line_height, font="Times-Italic")
         elif t == "image":
             img = self._resolve_image(page, element.get("image_id"), used_images)
             if not img:
@@ -147,15 +150,14 @@ class PdfEngine:
         c.drawImage(reader, dx, dy, width=dw, height=dh, preserveAspectRatio=False, mask="auto")
         c.restoreState()
 
-    def _draw_wrapped_text(self, c, text: str, x: float, y: float, w: float, h: float, size: int, italic: bool = False) -> None:
-        font = "Times-Italic" if italic else "Times-Roman"
+    def _draw_wrapped_text(self, c, text: str, x: float, y: float, w: float, h: float, size: float, *, line_height: float = 1.45, font: str = "Times-Roman") -> None:
         c.setFillColor(colors.HexColor("#15120E")); c.setFont(font, size)
         lines = []
         for paragraph in (text or "").split("\n"):
             lines.extend(simpleSplit(paragraph, font, size, w))
             if paragraph.strip() == "":
                 lines.append("")
-        leading = size * 1.45
+        leading = size * max(1.0, line_height)
         max_lines = max(1, int(h // leading))
         for idx, line in enumerate(lines[:max_lines]):
             c.drawString(x, y + h - ((idx + 1) * leading), line)
