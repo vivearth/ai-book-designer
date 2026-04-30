@@ -18,9 +18,9 @@ DEFAULT_FORMAT_SETTINGS = {
     "typography_style": "classic-serif",
     "image_policy": "minimal",
     "preview_scenarios": [
-        {"id": "image-only", "title": "Image-only page", "description": "A full scene-setting visual page."},
-        {"id": "text-with-image", "title": "Text with image", "description": "A balanced composition with visual support."},
-        {"id": "text-only", "title": "Text-only page", "description": "Elegant uninterrupted reading pages."},
+        {"id": "image_only", "title": "Image-only page", "description": "A full scene-setting visual page."},
+        {"id": "text_with_image", "title": "Text with image", "description": "A balanced composition with visual support."},
+        {"id": "text_only", "title": "Text-only page", "description": "Elegant uninterrupted reading pages."},
     ],
 }
 

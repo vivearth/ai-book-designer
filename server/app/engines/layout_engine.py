@@ -7,7 +7,7 @@ class LayoutEngine:
         text=page.final_text or page.generated_text or page.user_text or ""
         ids=[i.id for i in page.images]; width,height=self.PAGE_SIZES.get(book.page_size or 'A4',self.PAGE_SIZES['A4'])
         safe={"x":36,"y":36,"w":width-72,"h":height-72}; variant=variant or self._default_variant(len(ids),len(text.split()))
-        return {"schema_version":2,"page":{"width":width,"height":height,"unit":"pt","safe_area":safe},"composition":"text_with_image" if ids else "text_only","variant":variant,"typography":{"body_size":11,"line_height":1.5},"elements":self._build(variant,safe,ids)}
+        return {"layout_schema":"page-layout-1","page":{"width":width,"height":height,"unit":"pt","safe_area":safe},"composition":"text_with_image" if ids else "text_only","variant":variant,"typography":{"body_size":11,"line_height":1.5},"elements":self._build(variant,safe,ids)}
     def _default_variant(self,c,w):
         return 'text_only_classic' if c==0 else ('one_image_top_text_bottom' if c==1 and w<120 else 'one_image_left_text_right' if c==1 else 'two_image_grid_top_text_bottom' if c==2 else 'three_plus_gallery_with_text_block')
     def _img(self,n,i,b,fit='cover',role='illustration'): return {"id":f"image_{n}","type":"image","role":role,"image_id":i,"box":b,"z":10,"fit":fit}

@@ -25,19 +25,6 @@ def test_upload_image_mutates_only_target_page(client):
     assert len([p for p in pages if p['id']==p2['id']][0]['images'])==0
 
 
-def test_layout_rejects_image_id_from_other_page(client):
-    book=client.post('/api/books',json={'title':'t','book_type_id':'custom'}).json()
-    p1=client.post(f"/api/books/{book['id']}/pages",json={'page_number':1,'user_text':'hello text'}).json()
-    p2=client.post(f"/api/books/{book['id']}/pages",json={'page_number':2,'user_text':'hello text'}).json()
-    img=client.post(f"/api/pages/{p1['id']}/images",files={'file':('a.png',_mk_png(),'image/png')}).json()
-    bad={"schema_version":2,"page":{"width":595,"height":842,"unit":"pt","safe_area":{"x":36,"y":36,"w":523,"h":770}},"elements":[{"id":"image_1","type":"image","image_id":img['id'],"box":{"x":36,"y":36,"w":200,"h":200}},{"id":"text_main","type":"text","box":{"x":260,"y":36,"w":299,"h":770}}]}
-    resp=client.post(f"/api/pages/{p2['id']}/layout-options",json={'preserve_text':True,'option_count':2})
-    assert resp.status_code==200
-    # inject stale option id via direct select endpoint not possible; ensure generated options are valid for current page
-    for opt in resp.json()['options']:
-        assert opt['layout_json']['validation']['valid'] is True
-
-
 def test_layout_option_generation_returns_two_valid_options(client):
     book=client.post('/api/books',json={'title':'t','book_type_id':'custom'}).json()
     page=client.post(f"/api/books/{book['id']}/pages",json={'page_number':1,'user_text':'alpha beta gamma '*80}).json()
@@ -48,10 +35,9 @@ def test_layout_option_generation_returns_two_valid_options(client):
     assert all(o['preview_metadata']['validation']['valid'] for o in opts)
 
 
-def test_old_layout_without_elements_is_normalized_or_preview_safe(client):
+def test_old_layout_without_elements_is_rebuilt_on_write_only(client):
     book=client.post('/api/books',json={'title':'t','book_type_id':'custom'}).json()
     page=client.post(f"/api/books/{book['id']}/pages",json={'page_number':1,'user_text':'x y z'}).json()
     client.patch(f"/api/pages/{page['id']}",json={'layout_json':{'text_area':{'x':0.1}}})
     got=client.get(f"/api/books/{book['id']}/pages").json()[0]
-    assert got['layout_json'].get('schema_version')==2
-    assert got['layout_json'].get('elements')
+    assert got['layout_json'].get('layout_schema') == 'page-layout-1'

@@ -15,7 +15,7 @@ function getEffectiveCapacity(book: Book, page: Page | null, activeLayout: Recor
 
 export function PagePreview({ book, page, layoutOverride, mini = false, editable = false, onTextSave, onImageSelect }: { book: Book; page: Page | null; layoutOverride?: Record<string, unknown> | null; mini?: boolean; editable?: boolean; onTextSave?: (nextText: string) => Promise<void> | void; onImageSelect?: (imageId: string) => void }) {
   const activeLayout = (layoutOverride || page?.layout_json || {}) as Record<string, any>
-  const hasSchemaElements = activeLayout?.schema_version === 2 && Array.isArray(activeLayout?.elements) && activeLayout.elements.length > 0
+  const hasSchemaElements = activeLayout?.layout_schema === "page-layout-1" && Array.isArray(activeLayout?.elements) && activeLayout.elements.length > 0
   if (!hasSchemaElements) return <div className="page-preview"><div className="notice-pill">Invalid page layout. Regenerate layout.</div></div>
 
   const text = page?.final_text || page?.generated_text || page?.user_text || ''

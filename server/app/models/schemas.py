@@ -7,7 +7,7 @@ from pydantic import BaseModel, Field
 
 
 class PreviewScenario(BaseModel):
-    id: Literal["image-only", "text-with-image", "text-only"]
+    id: Literal["image_only", "text_with_image", "text_only"]
     title: str
     description: str
 

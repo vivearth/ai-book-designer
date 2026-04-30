@@ -25,7 +25,7 @@ class LayoutValidator:
     def validate_layout(self, layout_json: dict, *, page=None, text: str='') -> LayoutValidationResult:
         e=[]; w=[]
         if not isinstance(layout_json,dict): return LayoutValidationResult(False,['layout_json must be an object'],[],0,len(text.split()),0)
-        if layout_json.get('schema_version')!=2: e.append('layout_json.schema_version must be 2')
+        if layout_json.get('layout_schema') != 'page-layout-1': e.append('layout_json.layout_schema must be page-layout-1')
         pd=layout_json.get('page') or {}; safe=pd.get('safe_area') or {'x':0,'y':0,'w':pd.get('width',1),'h':pd.get('height',1)}
         elements=layout_json.get('elements') or []
         if not isinstance(elements,list): e.append('elements must be an array'); elements=[]

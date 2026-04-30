@@ -8,9 +8,9 @@ def test_default_text_only_layout_valid(client):
     from app.services.page_service import PageService
     svc=PageService()
     db=svc  # not used
-    # API already normalized layout
+    client.patch(f"/api/pages/{page['id']}", json={'user_text': 'hello world '*20})
     got=client.get(f"/api/books/{book['id']}/pages").json()[0]
-    assert got['layout_json']['schema_version']==2
+    assert got['layout_json']['layout_schema']=="page-layout-1"
     assert got['layout_json']['validation']['valid'] is True
 
 
@@ -43,5 +43,5 @@ def test_repaginate_saves_validated_schema_layouts(client):
     page=client.post(f"/api/books/{book['id']}/pages",json={'page_number':1,'user_text':long}).json()
     client.patch(f"/api/pages/{page['id']}",json={'user_text':long})
     pages=client.get(f"/api/books/{book['id']}/pages").json()
-    assert all(p['layout_json'].get('schema_version')==2 for p in pages)
+    assert all(p['layout_json'].get('layout_schema')=="page-layout-1" for p in pages)
     assert all((p['layout_json'].get('validation') or {}).get('valid') is True for p in pages)
