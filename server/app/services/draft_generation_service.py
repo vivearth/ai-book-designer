@@ -37,7 +37,8 @@ class DraftGenerationService:
             warnings.append(f"Draft pages were appended after existing {existing_count} page(s).")
 
         for idx, goal in enumerate(goals, start=1):
-            page_number = start_number + idx
+            last = db.query(Page).filter(Page.book_id == book.id).order_by(Page.page_number.desc()).first()
+            page_number = (last.page_number if last else 0) + 1
             page = self.page_service.create_page(db, book.id, PageCreate(page_number=page_number, user_prompt=goal, user_text=payload.instructions or ""))
             req = GenerationRequest(
                 instruction=goal,
