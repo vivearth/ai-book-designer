@@ -20,7 +20,7 @@ class PdfEngine:
         filename = f"{safe_title}_{book.id}.pdf"
         output_path = settings.export_dir / filename
 
-        c = canvas.Canvas(str(output_path), pagesize=A4)
+        c = canvas.Canvas(str(output_path), pagesize=A4, pageCompression=0)
         self._render_cover(c, book)
 
         pages_query = db.query(Page).filter(Page.book_id == book.id)
@@ -89,6 +89,25 @@ class PdfEngine:
             self._render_element(c, element, page, origin_x, origin_y, layout_w, layout_h, scale, upload_dir, used_images, body_size, line_height)
         c.showPage()
 
+
+    def _resolve_text_element_content(self, element: dict, page: Page) -> str:
+        direct = element.get("text")
+        if isinstance(direct, str) and direct.strip():
+            return direct
+        role = str(element.get("role") or "").lower()
+        if role == "page_label":
+            return f"PAGE {page.page_number}"
+        source = str(element.get("text_source") or "").lower()
+        if source == "final_text":
+            return page.final_text or ""
+        if source == "generated_text":
+            return page.generated_text or ""
+        if source == "user_text":
+            return page.user_text or ""
+        if role == "body" or element.get("id") == "text_main":
+            return page.final_text or page.generated_text or page.user_text or ""
+        return ""
+
     def _render_element(self, c, element, page, ox, oy, layout_w, layout_h, scale, upload_dir, used_images, body_size: float, line_height: float):
         box = element.get("box") or {}
         x, y, w, h = box.get("x"), box.get("y"), box.get("w"), box.get("h")
@@ -100,10 +119,13 @@ class PdfEngine:
         pdf_h = float(h) * scale
         t = element.get("type")
         if t == "text":
-            text = page.final_text or page.generated_text or page.user_text or ""
+            text = self._resolve_text_element_content(element, page)
             role = (element.get("role") or "").lower()
+            if not text:
+                return
             font = "Times-Bold" if role in {"page_label", "label", "title", "kicker"} else "Times-Roman"
-            self._draw_wrapped_text(c, text, pdf_x, pdf_y, pdf_w, pdf_h, body_size, line_height=line_height, font=font)
+            text_value = text.upper() if role == "page_label" else text
+            self._draw_wrapped_text(c, text_value, pdf_x, pdf_y, pdf_w, pdf_h, max(8.0, body_size - 1.5) if role == "page_label" else body_size, line_height=line_height, font=font)
         elif t == "caption":
             caption = element.get("text") or ""
             if not caption and element.get("image_id"):

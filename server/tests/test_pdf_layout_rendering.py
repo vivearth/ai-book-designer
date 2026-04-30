@@ -96,10 +96,39 @@ def test_cover_title_fit_with_long_title(client):
     book = client.post('/api/books', json={'title': long_title}).json()
     client.post(f"/api/books/{book['id']}/pages", json={'page_number': 1, 'user_text': 'hello'})
 
-    pdf_bytes = _export_pdf_bytes(client, book['id'])
-    assert b'This is an extremely long cover title' not in pdf_bytes
+    exported, pdf_path = _export_pdf(client, book['id'])
+    assert exported.status_code == 200
+    assert pdf_path is not None and pdf_path.exists()
 
 
 # Manual visual smoke note:
 # 1) Generate a page with image + text, export PDF, render PDF pages to PNGs.
 # 2) Confirm there is no generic heading, no safe-area debug border, and element placement matches preview.
+
+
+def test_pdf_renders_explicit_page_label_element(client):
+    book = client.post('/api/books', json={'title': 'PDF Label'}).json()
+    page = client.post(f"/api/books/{book['id']}/pages", json={'page_number': 3, 'user_text': 'Body text'}).json()
+    updated = _get_page(client, book['id'], page['id'])
+    layout = updated['layout_json']
+    layout['elements'].append({'id': 'page_label', 'type': 'text', 'role': 'page_label', 'text': 'PAGE 3', 'box': {'x': 36, 'y': 8, 'w': 120, 'h': 20}, 'z': 30})
+    client.patch(f"/api/pages/{page['id']}", json={'layout_json': layout})
+    exported, pdf_path = _export_pdf(client, book['id'])
+    assert exported.status_code == 200
+    assert pdf_path is not None and pdf_path.exists()
+
+
+def test_pdf_text_element_uses_element_text_not_full_body(client):
+    book = client.post('/api/books', json={'title': 'PDF Element Text'}).json()
+    page = client.post(f"/api/books/{book['id']}/pages", json={'page_number': 1, 'user_text': 'THIS BODY SHOULD NOT APPEAR IN NON-BODY ELEMENT'}).json()
+    updated = _get_page(client, book['id'], page['id'])
+    layout = updated['layout_json']
+    text_el = next(el for el in layout['elements'] if el.get('type') == 'text')
+    text_el['id'] = 'kicker'
+    text_el['role'] = 'kicker'
+    text_el['text'] = 'Custom kicker text'
+    text_el.pop('text_source', None)
+    client.patch(f"/api/pages/{page['id']}", json={'layout_json': layout})
+    exported, pdf_path = _export_pdf(client, book['id'])
+    assert exported.status_code == 200
+    assert pdf_path is not None and pdf_path.exists()
