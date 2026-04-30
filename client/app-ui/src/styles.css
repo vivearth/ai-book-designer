@@ -1281,9 +1281,9 @@ input, textarea, select, .ui-field input, .ui-field textarea {
   .panel-tabs { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 }
 
-.page-preview-canvas { position: relative; width: 100%; background: #fff; }
+.page-preview-canvas { position: relative; width: 100%; background: #fff; overflow: hidden; }
 .page-preview-element { position: absolute; overflow: hidden; }
-.page-preview-element--text { font-family: Georgia, 'Times New Roman', serif; color: #111; white-space: pre-wrap; line-height: 1.45; border: none; background: transparent; }
+.page-preview-element--text { font-family: Georgia, 'Times New Roman', serif; color: #111; white-space: pre-wrap; line-height: 1.45; border: none; background: transparent; overflow: hidden; }
 .page-preview-element--image { border: none; }
 .page-preview-element--caption { font-size: 0.8rem; color: #555; white-space: pre-wrap; }
 .page-preview-element--editing { background: rgba(255,255,255,.96); outline: 1px solid #c7d2fe; resize: none; }

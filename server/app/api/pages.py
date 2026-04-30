@@ -81,3 +81,13 @@ async def upload_page_image(
     db: Session = Depends(get_db),
 ):
     return await service.upload_image(db, page_id, file, caption)
+
+
+@router.delete("/pages/{page_id}/images/{image_id}", response_model=PageRead)
+def delete_page_image(page_id: str, image_id: str, db: Session = Depends(get_db)):
+    return service.delete_image(db, page_id, image_id)
+
+
+@router.delete("/pages/{page_id}")
+def delete_page(page_id: str, db: Session = Depends(get_db)):
+    return service.delete_page(db, page_id)

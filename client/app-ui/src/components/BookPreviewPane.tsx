@@ -5,10 +5,11 @@ import { PageNavigator } from './PageNavigator'
 
 type ActiveTarget = { kind: 'cover' } | { kind: 'page'; pageId: string } | { kind: 'new-page' }
 
-export function BookPreviewPane({ book, pages, activeTarget, onSelectCover, onSelectPage, onCreateNextPage, onTextSave, onImageSelect }: {
+export function BookPreviewPane({ book, pages, activeTarget, layoutOverride, onSelectCover, onSelectPage, onCreateNextPage, onTextSave, onImageSelect }: {
   book: Book
   pages: Page[]
   activeTarget: ActiveTarget
+  layoutOverride?: Record<string, unknown> | null
   onSelectCover: () => void
   onSelectPage: (pageId: string) => void
   onCreateNextPage: () => void
@@ -23,7 +24,7 @@ export function BookPreviewPane({ book, pages, activeTarget, onSelectCover, onSe
         <PageNavigator pages={pages} activeTarget={activeTarget} onSelectCover={onSelectCover} onSelectPage={onSelectPage} onCreateNext={onCreateNextPage} />
       </div>
       <div className="preview-workspace"><div className="book-stage"><div className="book-stage__shadow" /><div className="book-sheet">
-        {activeTarget.kind === 'cover' ? <BookCover book={book} /> : <PagePreview book={book} page={activePage} editable onTextSave={(nextText) => activePage ? onTextSave?.(activePage, nextText) : undefined} onImageSelect={onImageSelect} />}
+        {activeTarget.kind === 'cover' ? <BookCover book={book} /> : <PagePreview book={book} page={activePage} layoutOverride={layoutOverride} editable onTextSave={(nextText) => activePage ? onTextSave?.(activePage, nextText) : undefined} onImageSelect={onImageSelect} />}
       </div></div></div>
     </section>
   )

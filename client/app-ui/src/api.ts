@@ -46,6 +46,8 @@ export const api = {
     const body = new FormData(); body.append('file', file); if (caption) body.append('caption', caption)
     return request<PageImage>(`/pages/${pageId}/images`, { method: 'POST', body })
   },
+  deletePageImage: (pageId: string, imageId: string) => request<Page>(`/pages/${pageId}/images/${imageId}`, { method: 'DELETE' }),
+  deletePage: (pageId: string) => request<{ deleted_page_id: string; book_id: string; pages: Page[]; deleted_page_number: number }>(`/pages/${pageId}`, { method: 'DELETE' }),
   exportPdf: (bookId: string, payload?: { approved_only?: boolean }) =>
     request<{ book_id: string; filename: string; download_url: string }>(`/books/${bookId}/export/pdf`, { method: 'POST', body: JSON.stringify(payload || {}) }),
   generateDraft: (bookId: string, payload: Record<string, unknown>) => request<DraftGenerationResponse>(`/books/${bookId}/draft/generate`, { method: 'POST', body: JSON.stringify(payload) }),
