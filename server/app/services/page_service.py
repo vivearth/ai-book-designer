@@ -53,8 +53,9 @@ class PageService:
         return page
 
     def create_page(self, db: Session, book_id: str, payload: PageCreate) -> Page:
-        self.get_book(db, book_id)
+        book = self.get_book(db, book_id)
         page = Page(book_id=book_id, **payload.model_dump())
+        page.layout_json = self._validated_layout(book, page)
         db.add(page)
         try:
             db.commit()
